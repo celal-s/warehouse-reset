@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Layout from '../../components/Layout'
 import { getClients, getMarketplaces, importProducts } from '../../api'
 
@@ -10,6 +10,7 @@ const adminNavItems = [
 ]
 
 export default function AdminImport() {
+  const fileInputRef = useRef(null)
   const [clients, setClients] = useState([])
   const [marketplaces, setMarketplaces] = useState([])
   const [loading, setLoading] = useState(true)
@@ -88,8 +89,7 @@ export default function AdminImport() {
       setResults(result)
       // Reset file input
       setFile(null)
-      const fileInput = document.getElementById('file-input')
-      if (fileInput) fileInput.value = ''
+      if (fileInputRef.current) fileInputRef.current.value = ''
     } catch (err) {
       setError(err.message)
     } finally {
@@ -133,7 +133,7 @@ export default function AdminImport() {
                     )}
                   </div>
                   <input
-                    id="file-input"
+                    ref={fileInputRef}
                     type="file"
                     accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                     onChange={handleFileChange}

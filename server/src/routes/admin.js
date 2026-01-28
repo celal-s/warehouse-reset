@@ -107,7 +107,7 @@ router.delete('/locations/:id', async (req, res, next) => {
       [id]
     );
 
-    if (itemCheck.rows[0].count > 0) {
+    if (parseInt(itemCheck.rows[0].count) > 0) {
       return res.status(400).json({
         error: 'Cannot delete location with items',
         item_count: itemCheck.rows[0].count
@@ -142,15 +142,15 @@ router.post('/import', upload.single('file'), async (req, res, next) => {
     const rows = importService.parseExcel(req.file.buffer);
     const result = await importService.importProducts(rows, client_code, marketplace);
 
-    // Log activity
-    await activityService.log(
+    // Log activity (fire and forget)
+    activityService.log(
       'import',
       null,
       'products_imported',
       'admin',
       'admin',
       { client_code, marketplace, ...result }
-    );
+    ).catch(err => console.error('Activity log failed:', err));
 
     res.json({
       message: 'Import completed',

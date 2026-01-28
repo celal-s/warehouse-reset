@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import Layout from '../../components/Layout'
 import LabelUpload from '../../components/upload/LabelUpload'
 import { getClientInventoryItem, makeDecision } from '../../api'
 
 export default function ClientItemDetail() {
   const { clientCode, itemId } = useParams()
-  const navigate = useNavigate()
   const [item, setItem] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)

@@ -194,15 +194,15 @@ router.post('/:clientCode/inventory/:itemId/decision', clientIsolation, async (r
       RETURNING *
     `, [itemId, decision, shipping_label_url, notes]);
 
-    // Log activity
-    await activityService.log(
+    // Log activity (fire and forget)
+    activityService.log(
       'inventory_item',
       parseInt(itemId),
       'decision_made',
       'client',
       req.client.client_code,
       { decision, notes }
-    );
+    ).catch(err => console.error('Activity log failed:', err));
 
     res.json({
       message: 'Decision recorded',

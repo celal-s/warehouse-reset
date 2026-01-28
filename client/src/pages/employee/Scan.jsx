@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import Layout from '../../components/Layout'
 import ScannerInput from '../../components/scanner/ScannerInput'
 import PhotoUpload from '../../components/upload/PhotoUpload'
-import { scanUPC, searchProducts, getClients, getLocations, createInventoryItem, checkProductHasPhotos } from '../../api'
+import { scanUPC, searchProducts, getClients, getLocations, createInventoryItem } from '../../api'
 
 export default function EmployeeScan() {
   const [product, setProduct] = useState(null)
@@ -50,7 +50,7 @@ export default function EmployeeScan() {
       if (!result) {
         // Try general search
         const searchResults = await searchProducts(upc)
-        if (searchResults.length === 1) {
+        if (Array.isArray(searchResults) && searchResults.length === 1) {
           result = searchResults[0]
         } else if (searchResults.length > 1) {
           // Multiple results - show list

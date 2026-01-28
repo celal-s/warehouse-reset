@@ -119,21 +119,25 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({ error: 'Product ID and Client ID are required' });
     }
 
+    if (quantity !== undefined && (isNaN(quantity) || quantity < 1)) {
+      return res.status(400).json({ error: 'Quantity must be a positive number' });
+    }
+
     const result = await db.query(`
       INSERT INTO inventory_items (product_id, client_id, storage_location_id, quantity, condition, status)
       VALUES ($1, $2, $3, $4, $5, 'awaiting_decision')
       RETURNING *
     `, [product_id, client_id, storage_location_id, quantity || 1, condition || 'sellable']);
 
-    // Log activity
-    await activityService.log(
+    // Log activity (fire and forget)
+    activityService.log(
       'inventory_item',
       result.rows[0].id,
       'created',
       'employee',
       'warehouse',
       { product_id, client_id, quantity, condition }
-    );
+    ).catch(err => console.error('Activity log failed:', err));
 
     res.status(201).json(result.rows[0]);
   } catch (error) {

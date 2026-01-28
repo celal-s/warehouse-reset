@@ -5,6 +5,9 @@ const importService = {
   // Parse Excel file and return rows as objects
   parseExcel(buffer) {
     const workbook = XLSX.read(buffer, { type: 'buffer' });
+    if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+      throw new Error('Excel file has no sheets');
+    }
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
     return XLSX.utils.sheet_to_json(sheet);

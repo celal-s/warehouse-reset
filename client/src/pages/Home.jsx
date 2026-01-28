@@ -4,9 +4,16 @@ import { getClients } from '../api'
 
 export default function Home() {
   const [clients, setClients] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
-    getClients().then(setClients).catch(console.error)
+    setLoading(true)
+    setError(null)
+    getClients()
+      .then(setClients)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
   }, [])
 
   return (
@@ -58,18 +65,28 @@ export default function Home() {
           {/* Clients */}
           <div className="pt-4 border-t">
             <h3 className="text-sm font-medium text-gray-700 mb-3">Client Portals</h3>
-            <div className="grid grid-cols-3 gap-3">
-              {clients.map((client) => (
-                <Link
-                  key={client.id}
-                  to={`/client/${client.client_code}`}
-                  className="p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow border-2 border-transparent hover:border-purple-500 text-center"
-                >
-                  <div className="text-lg font-bold text-purple-600">{client.client_code}</div>
-                  <div className="text-xs text-gray-500">{client.name}</div>
-                </Link>
-              ))}
-            </div>
+            {loading ? (
+              <div className="flex justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+              </div>
+            ) : error ? (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                {error}
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-3">
+                {clients.map((client) => (
+                  <Link
+                    key={client.id}
+                    to={`/client/${client.client_code}`}
+                    className="p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow border-2 border-transparent hover:border-purple-500 text-center"
+                  >
+                    <div className="text-lg font-bold text-purple-600">{client.client_code}</div>
+                    <div className="text-xs text-gray-500">{client.name}</div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

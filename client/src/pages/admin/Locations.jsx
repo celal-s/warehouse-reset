@@ -60,6 +60,7 @@ export default function AdminLocations() {
   }
 
   const handleDelete = async (id) => {
+    // TODO: Replace confirm() with a custom modal component for better UX
     if (!confirm('Are you sure you want to delete this location?')) {
       return
     }
