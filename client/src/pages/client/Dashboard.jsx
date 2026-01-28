@@ -28,6 +28,7 @@ export default function ClientDashboard() {
 
   const navItems = [
     { to: `/client/${clientCode}`, label: 'Dashboard' },
+    { to: `/client/${clientCode}/products`, label: 'Products' },
     { to: `/client/${clientCode}/inventory`, label: 'Inventory' }
   ]
 
@@ -136,6 +137,15 @@ export default function ClientDashboard() {
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
         <div className="flex flex-wrap gap-4">
+          <Link
+            to={`/client/${clientCode}/products`}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+            Product Catalog
+          </Link>
           <Link
             to={`/client/${clientCode}/inventory`}
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"

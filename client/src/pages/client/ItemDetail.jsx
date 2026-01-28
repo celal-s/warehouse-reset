@@ -74,6 +74,7 @@ export default function ClientItemDetail() {
 
   const navItems = [
     { to: `/client/${clientCode}`, label: 'Dashboard' },
+    { to: `/client/${clientCode}/products`, label: 'Products' },
     { to: `/client/${clientCode}/inventory`, label: 'Inventory' }
   ]
 
@@ -130,19 +131,77 @@ export default function ClientItemDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Product Info */}
         <div className="bg-white rounded-lg shadow">
-          {/* Photos */}
-          {item?.photos && item.photos.length > 0 && (
+          {/* Two-Sided Photos */}
+          {(item?.photos?.length > 0 || item?.inventory_photos?.length > 0 || item?.listing_image_url) && (
             <div className="p-6 border-b">
-              <div className="grid grid-cols-3 gap-2">
-                {item.photos.map((photo, index) => (
-                  <img
-                    key={photo.id || index}
-                    src={photo.url}
-                    alt={`Product photo ${index + 1}`}
-                    className="w-full aspect-square object-cover rounded-lg border"
-                  />
-                ))}
+              <h3 className="text-sm font-medium text-gray-700 mb-4">Photos</h3>
+              <div className="grid grid-cols-2 gap-4">
+                {/* Listing Photo */}
+                <div>
+                  <h4 className="text-xs font-medium text-purple-700 mb-2 flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    Listing
+                  </h4>
+                  {item?.listing_image_url || item?.photos?.find(p => p.source === 'listing' || p.source === 'client_import') ? (
+                    <img
+                      src={item.listing_image_url || item.photos.find(p => p.source === 'listing' || p.source === 'client_import')?.url}
+                      alt="Listing"
+                      className="w-full aspect-square object-cover rounded-lg border"
+                      onError={(e) => { e.target.style.display = 'none' }}
+                    />
+                  ) : (
+                    <div className="w-full aspect-square bg-gray-50 rounded-lg flex items-center justify-center">
+                      <span className="text-xs text-gray-400">No listing photo</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Warehouse Photo */}
+                <div>
+                  <h4 className="text-xs font-medium text-blue-700 mb-2 flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                    </svg>
+                    Warehouse
+                  </h4>
+                  {item?.inventory_photos?.[0] || item?.photos?.find(p => p.source === 'warehouse') ? (
+                    <img
+                      src={item.inventory_photos?.[0]?.url || item.photos.find(p => p.source === 'warehouse')?.url || item.photos[0]?.url}
+                      alt="Warehouse"
+                      className="w-full aspect-square object-cover rounded-lg border"
+                    />
+                  ) : item?.photos?.[0] ? (
+                    <img
+                      src={item.photos[0].url}
+                      alt="Product"
+                      className="w-full aspect-square object-cover rounded-lg border"
+                    />
+                  ) : (
+                    <div className="w-full aspect-square bg-gray-50 rounded-lg flex items-center justify-center">
+                      <span className="text-xs text-gray-400">No warehouse photo</span>
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* Additional inventory photos */}
+              {item?.inventory_photos?.length > 1 && (
+                <div className="mt-4">
+                  <h4 className="text-xs font-medium text-gray-700 mb-2">Additional Item Photos</h4>
+                  <div className="grid grid-cols-4 gap-2">
+                    {item.inventory_photos.slice(1).map((photo, idx) => (
+                      <img
+                        key={photo.id || idx}
+                        src={photo.url}
+                        alt={`Item photo ${idx + 2}`}
+                        className="w-full aspect-square object-cover rounded border"
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -327,6 +386,94 @@ export default function ClientItemDetail() {
           </form>
         </div>
       </div>
+
+      {/* History Timeline */}
+      {item?.history && item.history.length > 0 && (
+        <div className="mt-6 bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">History</h3>
+          <div className="flow-root">
+            <ul className="-mb-8">
+              {item.history.map((event, idx) => (
+                <li key={event.id || idx}>
+                  <div className="relative pb-8">
+                    {idx !== item.history.length - 1 && (
+                      <span className="absolute left-4 top-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true" />
+                    )}
+                    <div className="relative flex space-x-3">
+                      <div>
+                        <span className={`h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white ${
+                          event.action === 'received' ? 'bg-green-500' :
+                          event.action === 'adjusted' ? 'bg-yellow-500' :
+                          event.action === 'moved' ? 'bg-blue-500' :
+                          event.action === 'condition_updated' ? 'bg-orange-500' :
+                          event.action === 'photo_added' ? 'bg-purple-500' :
+                          'bg-gray-500'
+                        }`}>
+                          {event.action === 'received' && (
+                            <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                          {event.action === 'adjusted' && (
+                            <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                          )}
+                          {event.action === 'moved' && (
+                            <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            </svg>
+                          )}
+                          {event.action === 'condition_updated' && (
+                            <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          )}
+                          {event.action === 'photo_added' && (
+                            <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          )}
+                          {!['received', 'adjusted', 'moved', 'condition_updated', 'photo_added'].includes(event.action) && (
+                            <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
+                        <div>
+                          <p className="text-sm text-gray-900">
+                            <span className="font-medium capitalize">{event.action.replace(/_/g, ' ')}</span>
+                            {event.field_changed && (
+                              <span className="text-gray-500">
+                                {' - '}{event.field_changed}: {event.old_value} → {event.new_value}
+                              </span>
+                            )}
+                            {event.quantity_change && (
+                              <span className={event.quantity_change > 0 ? 'text-green-600' : 'text-red-600'}>
+                                {' '}{event.quantity_change > 0 ? '+' : ''}{event.quantity_change} units
+                              </span>
+                            )}
+                          </p>
+                          {event.reason && (
+                            <p className="text-xs text-gray-500 mt-0.5">{event.reason}</p>
+                          )}
+                        </div>
+                        <div className="whitespace-nowrap text-right text-xs text-gray-500">
+                          {event.changed_at && new Date(event.changed_at).toLocaleDateString()}
+                          <br />
+                          {event.changed_at && new Date(event.changed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
     </Layout>
   )
 }

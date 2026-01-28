@@ -87,6 +87,7 @@ export default function ClientInventory() {
 
   const navItems = [
     { to: `/client/${clientCode}`, label: 'Dashboard' },
+    { to: `/client/${clientCode}/products`, label: 'Products' },
     { to: `/client/${clientCode}/inventory`, label: 'Inventory' }
   ]
 
@@ -187,9 +188,9 @@ export default function ClientInventory() {
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      {(item.photos?.[0] || item.amazon_image_url) && (
+                      {(item.photos?.[0] || item.display_image_url) && (
                         <img
-                          src={item.photos?.[0]?.url || item.amazon_image_url}
+                          src={item.photos?.[0]?.url || item.display_image_url}
                           alt=""
                           className="w-10 h-10 object-cover rounded"
                           onError={(e) => { e.target.style.display = 'none' }}

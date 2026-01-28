@@ -81,6 +81,9 @@ router.get('/:clientCode/inventory', authenticate, clientIsolation, checkClientA
         i.status,
         i.client_decision,
         i.decision_notes,
+        i.received_at,
+        i.condition_notes,
+        i.lot_number,
         i.created_at,
         i.updated_at,
         p.id as product_id,
@@ -88,12 +91,17 @@ router.get('/:clientCode/inventory', authenticate, clientIsolation, checkClientA
         p.title as product_title,
         sl.label as location_label,
         sl.type as location_type,
-        (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type))
+        (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type, 'source', pp.photo_source))
          FROM product_photos pp WHERE pp.product_id = p.id) as photos,
+        (SELECT json_agg(jsonb_build_object('id', ip.id, 'url', ip.photo_url, 'type', ip.photo_type, 'notes', ip.notes))
+         FROM inventory_photos ip WHERE ip.inventory_item_id = i.id) as inventory_photos,
         cpl.sku,
         cpl.asin,
         cpl.fnsku,
-        CASE WHEN cpl.asin IS NOT NULL THEN 'https://m.media-amazon.com/images/I/' || cpl.asin || '._SL250_.jpg' ELSE NULL END as amazon_image_url
+        COALESCE(
+          (SELECT pp.photo_url FROM product_photos pp WHERE pp.product_id = p.id ORDER BY pp.uploaded_at DESC LIMIT 1),
+          cpl.image_url
+        ) as display_image_url
       FROM inventory_items i
       JOIN products p ON i.product_id = p.id
       LEFT JOIN storage_locations sl ON i.storage_location_id = sl.id
@@ -137,16 +145,35 @@ router.get('/:clientCode/inventory/:itemId', authenticate, clientIsolation, chec
         p.id as product_id,
         p.upc,
         p.title as product_title,
+        p.warehouse_notes,
+        p.warehouse_condition,
         sl.label as location_label,
         sl.type as location_type,
-        (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type))
+        (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type, 'source', pp.photo_source))
          FROM product_photos pp WHERE pp.product_id = p.id) as photos,
+        (SELECT json_agg(jsonb_build_object('id', ip.id, 'url', ip.photo_url, 'type', ip.photo_type, 'notes', ip.notes, 'uploaded_at', ip.uploaded_at))
+         FROM inventory_photos ip WHERE ip.inventory_item_id = i.id) as inventory_photos,
         cpl.sku,
         cpl.asin,
         cpl.fnsku,
-        CASE WHEN cpl.asin IS NOT NULL THEN 'https://m.media-amazon.com/images/I/' || cpl.asin || '._SL250_.jpg' ELSE NULL END as amazon_image_url,
+        cpl.image_url as listing_image_url,
+        COALESCE(
+          (SELECT pp.photo_url FROM product_photos pp WHERE pp.product_id = p.id ORDER BY pp.uploaded_at DESC LIMIT 1),
+          cpl.image_url
+        ) as display_image_url,
         (SELECT json_agg(jsonb_build_object('id', cd.id, 'decision', cd.decision, 'shipping_label_url', cd.shipping_label_url, 'notes', cd.notes, 'decided_at', cd.decided_at))
-         FROM client_decisions cd WHERE cd.inventory_item_id = i.id) as decision_history
+         FROM client_decisions cd WHERE cd.inventory_item_id = i.id) as decision_history,
+        (SELECT json_agg(jsonb_build_object(
+          'id', ih.id,
+          'action', ih.action,
+          'field_changed', ih.field_changed,
+          'old_value', ih.old_value,
+          'new_value', ih.new_value,
+          'quantity_change', ih.quantity_change,
+          'changed_at', ih.changed_at,
+          'reason', ih.reason
+        ) ORDER BY ih.changed_at DESC)
+         FROM inventory_history ih WHERE ih.inventory_item_id = i.id) as history
       FROM inventory_items i
       JOIN products p ON i.product_id = p.id
       LEFT JOIN storage_locations sl ON i.storage_location_id = sl.id
@@ -159,6 +186,109 @@ router.get('/:clientCode/inventory/:itemId', authenticate, clientIsolation, chec
     }
 
     res.json(result.rows[0]);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get client's product catalog (separate from inventory)
+router.get('/:clientCode/products', authenticate, clientIsolation, checkClientAccess, async (req, res, next) => {
+  try {
+    const clientId = req.client.id;
+
+    const result = await db.query(`
+      SELECT
+        p.id,
+        p.upc,
+        p.title,
+        p.warehouse_notes,
+        p.warehouse_condition,
+        cpl.sku,
+        cpl.asin,
+        cpl.fnsku,
+        cpl.image_url as listing_image_url,
+        COALESCE(
+          (SELECT pp.photo_url FROM product_photos pp WHERE pp.product_id = p.id ORDER BY pp.uploaded_at DESC LIMIT 1),
+          cpl.image_url
+        ) as display_image_url,
+        (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type, 'source', pp.photo_source))
+         FROM product_photos pp WHERE pp.product_id = p.id) as photos,
+        COALESCE(
+          (SELECT SUM(ii.quantity) FROM inventory_items ii WHERE ii.product_id = p.id AND ii.client_id = $1),
+          0
+        )::integer as inventory_quantity,
+        (SELECT COUNT(*) FROM inventory_items ii WHERE ii.product_id = p.id AND ii.client_id = $1)::integer as inventory_entries
+      FROM products p
+      JOIN client_product_listings cpl ON cpl.product_id = p.id
+      WHERE cpl.client_id = $1
+      ORDER BY p.title
+    `, [clientId]);
+
+    res.json({ products: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get single product detail for client
+router.get('/:clientCode/products/:productId', authenticate, clientIsolation, checkClientAccess, async (req, res, next) => {
+  try {
+    const clientId = req.client.id;
+    const { productId } = req.params;
+
+    const result = await db.query(`
+      SELECT
+        p.id,
+        p.upc,
+        p.title,
+        p.warehouse_notes,
+        p.warehouse_condition,
+        p.created_at,
+        p.updated_at,
+        cpl.sku,
+        cpl.asin,
+        cpl.fnsku,
+        cpl.image_url as listing_image_url,
+        COALESCE(
+          (SELECT pp.photo_url FROM product_photos pp WHERE pp.product_id = p.id ORDER BY pp.uploaded_at DESC LIMIT 1),
+          cpl.image_url
+        ) as display_image_url,
+        (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type, 'source', pp.photo_source))
+         FROM product_photos pp WHERE pp.product_id = p.id) as photos,
+        COALESCE(
+          (SELECT SUM(ii.quantity) FROM inventory_items ii WHERE ii.product_id = p.id AND ii.client_id = $2),
+          0
+        )::integer as inventory_quantity
+      FROM products p
+      JOIN client_product_listings cpl ON cpl.product_id = p.id
+      WHERE p.id = $1 AND cpl.client_id = $2
+    `, [productId, clientId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    // Get inventory items for this product
+    const inventoryResult = await db.query(`
+      SELECT
+        i.id,
+        i.quantity,
+        i.condition,
+        i.status,
+        i.client_decision,
+        i.received_at,
+        i.lot_number,
+        sl.label as location_label
+      FROM inventory_items i
+      LEFT JOIN storage_locations sl ON i.storage_location_id = sl.id
+      WHERE i.product_id = $1 AND i.client_id = $2
+      ORDER BY i.received_at DESC
+    `, [productId, clientId]);
+
+    res.json({
+      ...result.rows[0],
+      inventory_items: inventoryResult.rows
+    });
   } catch (error) {
     next(error);
   }

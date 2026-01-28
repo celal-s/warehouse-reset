@@ -55,6 +55,7 @@ const importService = {
         const sku = normalizedRow.sku || normalizedRow['seller sku'] || null;
         const asin = normalizedRow.asin || null;
         const fnsku = normalizedRow.fnsku || null;
+        const imageUrl = normalizedRow.image_url || normalizedRow['image url'] || normalizedRow.image || null;
 
         // Check if product exists by UPC
         let productId;
@@ -86,21 +87,17 @@ const importService = {
           results.updated++;
         }
 
-        // Create or update client product listing
+        // Create or update client product listing (including image_url from import)
         await db.query(`
-          INSERT INTO client_product_listings (product_id, client_id, marketplace_id, sku, asin, fnsku)
-          VALUES ($1, $2, $3, $4, $5, $6)
+          INSERT INTO client_product_listings (product_id, client_id, marketplace_id, sku, asin, fnsku, image_url)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
           ON CONFLICT (product_id, client_id, marketplace_id)
-          DO UPDATE SET sku = $4, asin = $5, fnsku = $6
-        `, [productId, clientId, marketplaceId, sku, asin, fnsku]);
+          DO UPDATE SET sku = $4, asin = $5, fnsku = $6, image_url = COALESCE($7, client_product_listings.image_url)
+        `, [productId, clientId, marketplaceId, sku, asin, fnsku, imageUrl]);
 
-        // Create inventory item for client (upsert - increment quantity if exists)
-        await db.query(`
-          INSERT INTO inventory_items (product_id, client_id, quantity, condition, status)
-          VALUES ($1, $2, 1, 'sellable', 'awaiting_decision')
-          ON CONFLICT (product_id, client_id)
-          DO UPDATE SET quantity = inventory_items.quantity + 1, updated_at = CURRENT_TIMESTAMP
-        `, [productId, clientId]);
+        // NOTE: Import creates catalog only - inventory is NOT created here
+        // Inventory is created when items are physically received at the warehouse
+        // via the /inventory/receive endpoint
 
       } catch (error) {
         results.errors.push({

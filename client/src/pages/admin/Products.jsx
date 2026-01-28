@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import Layout from '../../components/Layout'
 import { getAdminProducts, searchProducts } from '../../api'
 
@@ -90,6 +91,20 @@ export default function AdminProducts() {
 
   return (
     <Layout title="Products" backLink="/" navItems={adminNavItems}>
+      {/* Header with Add Button */}
+      <div className="mb-6 flex justify-between items-center">
+        <h2 className="text-lg font-medium text-gray-900">Product Catalog</h2>
+        <Link
+          to="/admin/products/new"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Add Product
+        </Link>
+      </div>
+
       {/* Search */}
       <div className="mb-6">
         <form onSubmit={handleSearchSubmit} className="flex gap-2">
@@ -178,6 +193,9 @@ export default function AdminProducts() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Photos
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -243,6 +261,14 @@ export default function AdminProducts() {
                       </svg>
                       {product.photos?.length || product.photo_count || 0}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <Link
+                      to={`/admin/products/${product.id}`}
+                      className="text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      View
+                    </Link>
                   </td>
                 </tr>
               ))}

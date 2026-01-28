@@ -9,10 +9,14 @@ import EmployeeSort from './pages/employee/Sort'
 import ClientDashboard from './pages/client/Dashboard'
 import ClientInventory from './pages/client/Inventory'
 import ClientItemDetail from './pages/client/ItemDetail'
+import ClientProducts from './pages/client/Products'
+import ClientProductDetail from './pages/client/ProductDetail'
 import AdminDashboard from './pages/admin/Dashboard'
 import AdminImport from './pages/admin/Import'
 import AdminLocations from './pages/admin/Locations'
 import AdminProducts from './pages/admin/Products'
+import AdminProductDetail from './pages/admin/ProductDetail'
+import AdminProductNew from './pages/admin/ProductNew'
 import AdminUsers from './pages/admin/Users'
 
 // Components
@@ -57,6 +61,16 @@ function App() {
               <ClientItemDetail />
             </ProtectedRoute>
           } />
+          <Route path="/client/:clientCode/products" element={
+            <ProtectedRoute allowedRoles={['admin', 'client']}>
+              <ClientProducts />
+            </ProtectedRoute>
+          } />
+          <Route path="/client/:clientCode/products/:productId" element={
+            <ProtectedRoute allowedRoles={['admin', 'client']}>
+              <ClientProductDetail />
+            </ProtectedRoute>
+          } />
 
           {/* Admin Routes */}
           <Route path="/admin" element={
@@ -77,6 +91,16 @@ function App() {
           <Route path="/admin/products" element={
             <ProtectedRoute allowedRoles={['admin']}>
               <AdminProducts />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/products/new" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminProductNew />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/products/:id" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminProductDetail />
             </ProtectedRoute>
           } />
           <Route path="/admin/users" element={

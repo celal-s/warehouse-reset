@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import Layout from '../../components/Layout'
 import ScannerInput from '../../components/scanner/ScannerInput'
 import PhotoUpload from '../../components/upload/PhotoUpload'
-import { scanUPC, searchProducts, getClients, getLocations, createInventoryItem } from '../../api'
+import { scanUPC, searchProducts, getClients, getLocations, receiveInventory } from '../../api'
 
 export default function EmployeeScan() {
   const [product, setProduct] = useState(null)
@@ -26,6 +26,9 @@ export default function EmployeeScan() {
   const [showNewLocation, setShowNewLocation] = useState(false)
   const [newLocationType, setNewLocationType] = useState('pallet')
   const [newLocationLabel, setNewLocationLabel] = useState('')
+
+  // Condition notes
+  const [conditionNotes, setConditionNotes] = useState('')
 
   const [success, setSuccess] = useState(null)
 
@@ -86,7 +89,7 @@ export default function EmployeeScan() {
     }
   }
 
-  const handleAddInventory = async () => {
+  const handleReceiveInventory = async () => {
     if (!product || !selectedClient) {
       setError('Please select a client')
       return
@@ -110,7 +113,8 @@ export default function EmployeeScan() {
         product_id: product.id,
         client_id: selectedClient.client_id,
         quantity,
-        condition
+        condition,
+        notes: conditionNotes
       }
 
       if (showNewLocation && newLocationLabel.trim()) {
@@ -122,9 +126,9 @@ export default function EmployeeScan() {
         inventoryData.storage_location_id = locationId
       }
 
-      await createInventoryItem(inventoryData)
+      await receiveInventory(inventoryData)
 
-      setSuccess(`Added ${quantity}x "${product.title}" for client ${selectedClient.client_code}`)
+      setSuccess(`Received ${quantity}x "${product.title}" for client ${selectedClient.client_code}`)
 
       // Reset form
       setProduct(null)
@@ -135,6 +139,7 @@ export default function EmployeeScan() {
       setShowNewLocation(false)
       setNewLocationType('pallet')
       setNewLocationLabel('')
+      setConditionNotes('')
       setNeedsPhoto(false)
       setPhotoUploaded(false)
 
@@ -151,12 +156,12 @@ export default function EmployeeScan() {
   }
 
   const navItems = [
-    { to: '/employee/scan', label: 'Scan' },
+    { to: '/employee/scan', label: 'Receive' },
     { to: '/employee/sort', label: 'Sort' }
   ]
 
   return (
-    <Layout title="Scan Inventory" backLink="/" navItems={navItems}>
+    <Layout title="Receive Inventory" backLink="/" navItems={navItems}>
       {/* Success message */}
       {success && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
@@ -295,32 +300,50 @@ export default function EmployeeScan() {
           )}
 
           {/* Quantity & Condition */}
-          <div className="p-6 border-b grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Quantity
-              </label>
-              <input
-                type="number"
-                min="1"
-                value={quantity}
-                onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
+          <div className="p-6 border-b">
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quantity
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={quantity}
+                  onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Condition
+                </label>
+                <select
+                  value={condition}
+                  onChange={(e) => setCondition(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="sellable">Sellable</option>
+                  <option value="damaged">Damaged</option>
+                  <option value="refurbished">Refurbished</option>
+                  <option value="defective">Defective</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Condition
-              </label>
-              <select
-                value={condition}
-                onChange={(e) => setCondition(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="sellable">Sellable</option>
-                <option value="damaged">Damaged</option>
-              </select>
-            </div>
+            {condition !== 'sellable' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Condition Notes
+                </label>
+                <textarea
+                  value={conditionNotes}
+                  onChange={(e) => setConditionNotes(e.target.value)}
+                  rows={2}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Describe the condition issue..."
+                />
+              </div>
+            )}
           </div>
 
           {/* Storage Location */}
@@ -388,11 +411,14 @@ export default function EmployeeScan() {
           {/* Submit */}
           <div className="p-6">
             <button
-              onClick={handleAddInventory}
+              onClick={handleReceiveInventory}
               disabled={!selectedClient || (needsPhoto && !photoUploaded) || loading}
-              className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              className="w-full py-3 px-4 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
             >
-              Add to Inventory
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              Receive Inventory
             </button>
           </div>
         </div>

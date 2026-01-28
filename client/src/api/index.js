@@ -40,13 +40,21 @@ export const createProduct = (data) => request('/products', {
   body: JSON.stringify(data)
 });
 
-export const addProductPhoto = (productId, photoUrl, photoType = 'main') =>
+export const addProductPhoto = (productId, photoUrl, photoType = 'main', photoSource = 'warehouse') =>
   request(`/products/${productId}/photos`, {
     method: 'POST',
-    body: JSON.stringify({ photo_url: photoUrl, photo_type: photoType })
+    body: JSON.stringify({ photo_url: photoUrl, photo_type: photoType, photo_source: photoSource })
   });
 
 export const checkProductHasPhotos = (productId) => request(`/products/${productId}/has-photos`);
+
+export const getProductDetail = (id) => request(`/products/${id}/detail`);
+
+export const updateProductObservations = (id, data) =>
+  request(`/products/${id}/observations`, {
+    method: 'PATCH',
+    body: JSON.stringify(data)
+  });
 
 // Inventory
 export const getInventory = (filters = {}) => {
@@ -70,6 +78,37 @@ export const deleteInventoryItem = (id) => request(`/inventory/${id}`, {
   method: 'DELETE'
 });
 
+// Inventory receiving and management
+export const receiveInventory = (data) => request('/inventory/receive', {
+  method: 'POST',
+  body: JSON.stringify(data)
+});
+
+export const adjustInventory = (id, data) => request(`/inventory/${id}/adjust`, {
+  method: 'POST',
+  body: JSON.stringify(data)
+});
+
+export const moveInventory = (id, data) => request(`/inventory/${id}/move`, {
+  method: 'POST',
+  body: JSON.stringify(data)
+});
+
+export const updateInventoryCondition = (id, data) => request(`/inventory/${id}/condition`, {
+  method: 'POST',
+  body: JSON.stringify(data)
+});
+
+export const getInventoryHistory = (id) => request(`/inventory/${id}/history`);
+
+export const addInventoryPhoto = (id, photoUrl, photoType = 'condition', notes = null) =>
+  request(`/inventory/${id}/photos`, {
+    method: 'POST',
+    body: JSON.stringify({ photo_url: photoUrl, photo_type: photoType, notes })
+  });
+
+export const getInventoryPhotos = (id) => request(`/inventory/${id}/photos`);
+
 // Clients
 export const getClients = () => request('/clients');
 
@@ -90,6 +129,12 @@ export const makeDecision = (clientCode, itemId, data) =>
     method: 'POST',
     body: JSON.stringify(data)
   });
+
+// Client products (catalog)
+export const getClientProducts = (clientCode) => request(`/clients/${clientCode}/products`);
+
+export const getClientProduct = (clientCode, productId) =>
+  request(`/clients/${clientCode}/products/${productId}`);
 
 // Admin
 export const getAdminDashboard = () => request('/admin/dashboard');
