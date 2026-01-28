@@ -1,7 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext'
 
 // Pages
 import Home from './pages/Home'
+import Login from './pages/Login'
+import Signup from './pages/Signup'
 import EmployeeScan from './pages/employee/Scan'
 import EmployeeSort from './pages/employee/Sort'
 import ClientDashboard from './pages/client/Dashboard'
@@ -12,31 +15,76 @@ import AdminImport from './pages/admin/Import'
 import AdminLocations from './pages/admin/Locations'
 import AdminProducts from './pages/admin/Products'
 
+// Components
+import ProtectedRoute from './components/ProtectedRoute'
+
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Home/Landing */}
-        <Route path="/" element={<Home />} />
+      <AuthProvider>
+        <Routes>
+          {/* Home/Landing */}
+          <Route path="/" element={<Home />} />
 
-        {/* Employee Routes */}
-        <Route path="/employee/scan" element={<EmployeeScan />} />
-        <Route path="/employee/sort" element={<EmployeeSort />} />
+          {/* Auth Routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
 
-        {/* Client Routes (with client code) */}
-        <Route path="/client/:clientCode" element={<ClientDashboard />} />
-        <Route path="/client/:clientCode/inventory" element={<ClientInventory />} />
-        <Route path="/client/:clientCode/inventory/:itemId" element={<ClientItemDetail />} />
+          {/* Employee Routes */}
+          <Route path="/employee/scan" element={
+            <ProtectedRoute allowedRoles={['admin', 'employee']}>
+              <EmployeeScan />
+            </ProtectedRoute>
+          } />
+          <Route path="/employee/sort" element={
+            <ProtectedRoute allowedRoles={['admin', 'employee']}>
+              <EmployeeSort />
+            </ProtectedRoute>
+          } />
 
-        {/* Admin Routes */}
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/admin/import" element={<AdminImport />} />
-        <Route path="/admin/locations" element={<AdminLocations />} />
-        <Route path="/admin/products" element={<AdminProducts />} />
+          {/* Client Routes (with client code) */}
+          <Route path="/client/:clientCode" element={
+            <ProtectedRoute allowedRoles={['admin', 'client']}>
+              <ClientDashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/client/:clientCode/inventory" element={
+            <ProtectedRoute allowedRoles={['admin', 'client']}>
+              <ClientInventory />
+            </ProtectedRoute>
+          } />
+          <Route path="/client/:clientCode/inventory/:itemId" element={
+            <ProtectedRoute allowedRoles={['admin', 'client']}>
+              <ClientItemDetail />
+            </ProtectedRoute>
+          } />
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Admin Routes */}
+          <Route path="/admin" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/import" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminImport />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/locations" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminLocations />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/products" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminProducts />
+            </ProtectedRoute>
+          } />
+
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   )
 }

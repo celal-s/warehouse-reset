@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const activityService = require('../services/activityService');
+const { authenticate, authorize } = require('../middleware/auth');
 
 // Get all inventory items (with optional filters)
-router.get('/', async (req, res, next) => {
+router.get('/', authenticate, async (req, res, next) => {
   try {
     const { client_id, status, location_id, condition } = req.query;
 
@@ -73,7 +74,7 @@ router.get('/', async (req, res, next) => {
 });
 
 // Get single inventory item
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', authenticate, async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -111,7 +112,7 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // Create inventory item (employee adds from scan)
-router.post('/', async (req, res, next) => {
+router.post('/', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
   try {
     const { product_id, client_id, storage_location_id, quantity, condition } = req.body;
 
@@ -146,7 +147,7 @@ router.post('/', async (req, res, next) => {
 });
 
 // Update inventory item (location, quantity, condition)
-router.patch('/:id', async (req, res, next) => {
+router.patch('/:id', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { storage_location_id, quantity, condition, status } = req.body;
@@ -202,7 +203,7 @@ router.patch('/:id', async (req, res, next) => {
 });
 
 // Delete inventory item
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const result = await db.query('DELETE FROM inventory_items WHERE id = $1 RETURNING *', [id]);

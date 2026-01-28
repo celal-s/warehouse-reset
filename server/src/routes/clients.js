@@ -3,9 +3,10 @@ const router = express.Router();
 const db = require('../db');
 const clientIsolation = require('../middleware/clientIsolation');
 const activityService = require('../services/activityService');
+const { authenticate, authorize } = require('../middleware/auth');
 
 // Get all clients (for admin/employee selection)
-router.get('/', async (req, res, next) => {
+router.get('/', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
   try {
     const result = await db.query('SELECT * FROM clients ORDER BY client_code');
     res.json(result.rows);
@@ -14,15 +15,24 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+// Middleware to check client access for client-role users
+const checkClientAccess = (req, res, next) => {
+  // If user is a client, verify they can only access their own client
+  if (req.user.role === 'client' && req.user.client_id !== req.client.id) {
+    return res.status(403).json({ error: 'Access denied: You can only access your own client data' });
+  }
+  next();
+};
+
 // Client-specific routes (with isolation middleware)
 
 // Get client info
-router.get('/:clientCode', clientIsolation, async (req, res) => {
+router.get('/:clientCode', authenticate, clientIsolation, checkClientAccess, async (req, res) => {
   res.json(req.client);
 });
 
 // Get client dashboard stats
-router.get('/:clientCode/dashboard', clientIsolation, async (req, res, next) => {
+router.get('/:clientCode/dashboard', authenticate, clientIsolation, checkClientAccess, async (req, res, next) => {
   try {
     const clientId = req.client.id;
 
@@ -58,7 +68,7 @@ router.get('/:clientCode/dashboard', clientIsolation, async (req, res, next) => 
 });
 
 // Get client's inventory
-router.get('/:clientCode/inventory', clientIsolation, async (req, res, next) => {
+router.get('/:clientCode/inventory', authenticate, clientIsolation, checkClientAccess, async (req, res, next) => {
   try {
     const clientId = req.client.id;
     const { status, condition } = req.query;
@@ -115,7 +125,7 @@ router.get('/:clientCode/inventory', clientIsolation, async (req, res, next) => 
 });
 
 // Get single inventory item for client
-router.get('/:clientCode/inventory/:itemId', clientIsolation, async (req, res, next) => {
+router.get('/:clientCode/inventory/:itemId', authenticate, clientIsolation, checkClientAccess, async (req, res, next) => {
   try {
     const clientId = req.client.id;
     const { itemId } = req.params;
@@ -153,7 +163,7 @@ router.get('/:clientCode/inventory/:itemId', clientIsolation, async (req, res, n
 });
 
 // Make decision on inventory item
-router.post('/:clientCode/inventory/:itemId/decision', clientIsolation, async (req, res, next) => {
+router.post('/:clientCode/inventory/:itemId/decision', authenticate, clientIsolation, checkClientAccess, async (req, res, next) => {
   try {
     const clientId = req.client.id;
     const { itemId } = req.params;

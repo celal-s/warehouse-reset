@@ -212,7 +212,7 @@ export default function ClientInventory() {
                     {getStatusBadge(item.status)}
                   </td>
                   <td className="px-6 py-4">
-                    {getDecisionBadge(item.decision)}
+                    {getDecisionBadge(item.client_decision)}
                   </td>
                   <td className="px-6 py-4">
                     <Link

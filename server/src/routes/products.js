@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const searchService = require('../services/searchService');
+const { authenticate, authorize } = require('../middleware/auth');
 
 // Search products (by UPC, SKU, ASIN, FNSKU, or title)
-router.get('/search', async (req, res, next) => {
+router.get('/search', authenticate, async (req, res, next) => {
   try {
     const { q, client_id } = req.query;
     if (!q) {
@@ -19,7 +20,7 @@ router.get('/search', async (req, res, next) => {
 });
 
 // Scan UPC (exact match for barcode scanning)
-router.get('/scan/:upc', async (req, res, next) => {
+router.get('/scan/:upc', authenticate, async (req, res, next) => {
   try {
     const { upc } = req.params;
     const product = await searchService.searchByUPC(upc);
@@ -35,7 +36,7 @@ router.get('/scan/:upc', async (req, res, next) => {
 });
 
 // Get product by ID with all details
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', authenticate, async (req, res, next) => {
   try {
     const { id } = req.params;
     const result = await db.query(`
@@ -73,7 +74,7 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // Create a new product
-router.post('/', async (req, res, next) => {
+router.post('/', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
   try {
     const { upc, title } = req.body;
 
@@ -93,7 +94,7 @@ router.post('/', async (req, res, next) => {
 });
 
 // Add photo to product
-router.post('/:id/photos', async (req, res, next) => {
+router.post('/:id/photos', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { photo_url, photo_type = 'main' } = req.body;
@@ -114,7 +115,7 @@ router.post('/:id/photos', async (req, res, next) => {
 });
 
 // Check if product has photos
-router.get('/:id/has-photos', async (req, res, next) => {
+router.get('/:id/has-photos', authenticate, async (req, res, next) => {
   try {
     const { id } = req.params;
     const result = await db.query(

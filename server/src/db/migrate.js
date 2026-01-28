@@ -93,6 +93,18 @@ CREATE TABLE IF NOT EXISTS activity_log (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Users table for authentication
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  role VARCHAR(50) NOT NULL CHECK (role IN ('admin', 'employee', 'client')),
+  client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_products_upc ON products(upc);
 CREATE INDEX IF NOT EXISTS idx_client_product_listings_client ON client_product_listings(client_id);
@@ -102,6 +114,7 @@ CREATE INDEX IF NOT EXISTS idx_client_product_listings_fnsku ON client_product_l
 CREATE INDEX IF NOT EXISTS idx_inventory_items_client ON inventory_items(client_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_items_status ON inventory_items(status);
 CREATE INDEX IF NOT EXISTS idx_activity_log_entity ON activity_log(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 `;
 
 async function runMigrations() {

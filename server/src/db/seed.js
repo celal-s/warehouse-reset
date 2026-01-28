@@ -1,5 +1,6 @@
 require('dotenv').config();
 const { pool } = require('./index');
+const bcrypt = require('bcrypt');
 
 const seedData = async () => {
   try {
@@ -35,6 +36,14 @@ const seedData = async () => {
         ('box', 'B-003')
       ON CONFLICT (label) DO NOTHING
     `);
+
+    // Insert default admin user
+    const hashedPassword = bcrypt.hashSync('admin123', 10);
+    await pool.query(`
+      INSERT INTO users (email, password_hash, name, role) VALUES
+        ($1, $2, 'Admin', 'admin')
+      ON CONFLICT (email) DO NOTHING
+    `, ['admin@shipfifty.com', hashedPassword]);
 
     console.log('Seeding completed successfully');
   } catch (error) {

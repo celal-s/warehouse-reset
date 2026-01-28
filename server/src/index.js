@@ -8,6 +8,7 @@ const inventoryRoutes = require('./routes/inventory');
 const clientRoutes = require('./routes/clients');
 const adminRoutes = require('./routes/admin');
 const uploadRoutes = require('./routes/upload');
+const authRoutes = require('./routes/auth');
 const errorHandler = require('./middleware/errorHandler');
 const db = require('./db');
 
@@ -29,6 +30,7 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/auth', authRoutes);
 
 // Error handler
 app.use(errorHandler);

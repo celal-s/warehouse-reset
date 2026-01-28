@@ -4,11 +4,12 @@ const multer = require('multer');
 const db = require('../db');
 const importService = require('../services/importService');
 const activityService = require('../services/activityService');
+const { authenticate, authorize } = require('../middleware/auth');
 
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Dashboard stats
-router.get('/dashboard', async (req, res, next) => {
+router.get('/dashboard', authenticate, authorize('admin'), async (req, res, next) => {
   try {
     const stats = await db.query(`
       SELECT
@@ -47,7 +48,7 @@ router.get('/dashboard', async (req, res, next) => {
 });
 
 // Get activity log
-router.get('/activity', async (req, res, next) => {
+router.get('/activity', authenticate, authorize('admin'), async (req, res, next) => {
   try {
     const { limit = 50 } = req.query;
     const activity = await activityService.getRecentActivity(parseInt(limit));
@@ -58,7 +59,7 @@ router.get('/activity', async (req, res, next) => {
 });
 
 // Storage locations CRUD
-router.get('/locations', async (req, res, next) => {
+router.get('/locations', authenticate, authorize('admin'), async (req, res, next) => {
   try {
     const result = await db.query(`
       SELECT
@@ -75,7 +76,7 @@ router.get('/locations', async (req, res, next) => {
   }
 });
 
-router.post('/locations', async (req, res, next) => {
+router.post('/locations', authenticate, authorize('admin'), async (req, res, next) => {
   try {
     const { type, label } = req.body;
 
@@ -97,7 +98,7 @@ router.post('/locations', async (req, res, next) => {
   }
 });
 
-router.delete('/locations/:id', async (req, res, next) => {
+router.delete('/locations/:id', authenticate, authorize('admin'), async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -127,7 +128,7 @@ router.delete('/locations/:id', async (req, res, next) => {
 });
 
 // Import products from Excel
-router.post('/import', upload.single('file'), async (req, res, next) => {
+router.post('/import', authenticate, authorize('admin'), upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'File is required' });
@@ -163,7 +164,7 @@ router.post('/import', upload.single('file'), async (req, res, next) => {
 });
 
 // Get all products (for admin view)
-router.get('/products', async (req, res, next) => {
+router.get('/products', authenticate, authorize('admin'), async (req, res, next) => {
   try {
     const { page = 1, limit = 50 } = req.query;
     const offset = (page - 1) * limit;
@@ -203,7 +204,7 @@ router.get('/products', async (req, res, next) => {
 });
 
 // Get marketplaces
-router.get('/marketplaces', async (req, res, next) => {
+router.get('/marketplaces', authenticate, authorize('admin'), async (req, res, next) => {
   try {
     const result = await db.query('SELECT * FROM marketplaces ORDER BY code');
     res.json(result.rows);

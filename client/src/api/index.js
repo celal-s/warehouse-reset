@@ -2,9 +2,11 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 async function request(endpoint, options = {}) {
   const url = `${API_BASE}${endpoint}`;
+  const token = localStorage.getItem('auth_token');
   const config = {
     headers: {
       'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
       ...options.headers
     },
     ...options
@@ -134,3 +136,16 @@ export const getLabelSignature = (inventoryItemId) => request('/upload/signature
 });
 
 export const getUploadConfig = () => request('/upload/config');
+
+// Auth
+export const login = (email, password) => request('/auth/login', {
+  method: 'POST',
+  body: JSON.stringify({ email, password })
+});
+
+export const signup = (data) => request('/auth/signup', {
+  method: 'POST',
+  body: JSON.stringify(data)
+});
+
+export const getMe = () => request('/auth/me');
