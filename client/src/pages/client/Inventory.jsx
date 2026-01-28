@@ -187,11 +187,12 @@ export default function ClientInventory() {
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      {item.photos?.[0] && (
+                      {(item.photos?.[0] || item.amazon_image_url) && (
                         <img
-                          src={item.photos[0].url}
+                          src={item.photos?.[0]?.url || item.amazon_image_url}
                           alt=""
                           className="w-10 h-10 object-cover rounded"
+                          onError={(e) => { e.target.style.display = 'none' }}
                         />
                       )}
                       <div className="font-medium text-gray-900 truncate max-w-xs">

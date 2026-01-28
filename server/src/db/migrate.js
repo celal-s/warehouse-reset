@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS marketplaces (
 -- Products table
 CREATE TABLE IF NOT EXISTS products (
   id SERIAL PRIMARY KEY,
-  upc VARCHAR(50),
+  upc TEXT,
   title VARCHAR(500) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -68,7 +68,8 @@ CREATE TABLE IF NOT EXISTS inventory_items (
   client_decision VARCHAR(50),
   decision_notes TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(product_id, client_id)
 );
 
 -- Client decisions (separate table for return label uploads and decision tracking)

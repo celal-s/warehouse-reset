@@ -7,7 +7,8 @@ const adminNavItems = [
   { to: '/admin', label: 'Dashboard' },
   { to: '/admin/import', label: 'Import' },
   { to: '/admin/locations', label: 'Locations' },
-  { to: '/admin/products', label: 'Products' }
+  { to: '/admin/products', label: 'Products' },
+  { to: '/admin/users', label: 'Users' }
 ]
 
 export default function AdminDashboard() {
@@ -55,7 +56,7 @@ export default function AdminDashboard() {
       {/* Quick Actions */}
       <div className="mb-8">
         <h2 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link
             to="/admin/import"
             className="flex items-center gap-3 p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow border-2 border-transparent hover:border-blue-500"
@@ -97,6 +98,20 @@ export default function AdminDashboard() {
             <div>
               <div className="font-medium text-gray-900">View Products</div>
               <div className="text-sm text-gray-500">Browse catalog</div>
+            </div>
+          </Link>
+          <Link
+            to="/admin/users"
+            className="flex items-center gap-3 p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow border-2 border-transparent hover:border-orange-500"
+          >
+            <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            </div>
+            <div>
+              <div className="font-medium text-gray-900">Manage Users</div>
+              <div className="text-sm text-gray-500">Create, edit, deactivate</div>
             </div>
           </Link>
         </div>

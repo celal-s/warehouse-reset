@@ -6,7 +6,8 @@ const adminNavItems = [
   { to: '/admin', label: 'Dashboard' },
   { to: '/admin/import', label: 'Import' },
   { to: '/admin/locations', label: 'Locations' },
-  { to: '/admin/products', label: 'Products' }
+  { to: '/admin/products', label: 'Products' },
+  { to: '/admin/users', label: 'Users' }
 ]
 
 export default function AdminImport() {

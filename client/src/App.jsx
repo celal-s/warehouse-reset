@@ -4,7 +4,6 @@ import { AuthProvider } from './context/AuthContext'
 // Pages
 import Home from './pages/Home'
 import Login from './pages/Login'
-import Signup from './pages/Signup'
 import EmployeeScan from './pages/employee/Scan'
 import EmployeeSort from './pages/employee/Sort'
 import ClientDashboard from './pages/client/Dashboard'
@@ -14,6 +13,7 @@ import AdminDashboard from './pages/admin/Dashboard'
 import AdminImport from './pages/admin/Import'
 import AdminLocations from './pages/admin/Locations'
 import AdminProducts from './pages/admin/Products'
+import AdminUsers from './pages/admin/Users'
 
 // Components
 import ProtectedRoute from './components/ProtectedRoute'
@@ -28,7 +28,6 @@ function App() {
 
           {/* Auth Routes */}
           <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
 
           {/* Employee Routes */}
           <Route path="/employee/scan" element={
@@ -78,6 +77,11 @@ function App() {
           <Route path="/admin/products" element={
             <ProtectedRoute allowedRoles={['admin']}>
               <AdminProducts />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/users" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminUsers />
             </ProtectedRoute>
           } />
 

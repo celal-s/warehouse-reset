@@ -127,23 +127,15 @@ export default function Home() {
             </div>
           )}
 
-          {/* Login/Signup links for unauthenticated users */}
+          {/* Login link for unauthenticated users */}
           {!isAuthenticated && (
             <div className="pt-4 border-t">
-              <div className="space-y-3">
-                <Link
-                  to="/login"
-                  className="block w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors text-center"
-                >
-                  Sign In
-                </Link>
-                <Link
-                  to="/signup"
-                  className="block w-full py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium rounded-lg transition-colors text-center"
-                >
-                  Create Account
-                </Link>
-              </div>
+              <Link
+                to="/login"
+                className="block w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors text-center"
+              >
+                Sign In
+              </Link>
             </div>
           )}
         </div>

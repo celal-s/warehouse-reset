@@ -25,17 +25,8 @@ const seedData = async () => {
       ON CONFLICT (client_code) DO NOTHING
     `);
 
-    // Insert some default storage locations
-    await pool.query(`
-      INSERT INTO storage_locations (type, label) VALUES
-        ('pallet', 'P-001'),
-        ('pallet', 'P-002'),
-        ('pallet', 'P-003'),
-        ('box', 'B-001'),
-        ('box', 'B-002'),
-        ('box', 'B-003')
-      ON CONFLICT (label) DO NOTHING
-    `);
+    // Storage locations are now created on-the-fly by employees during scanning
+    // No default locations are seeded
 
     // Insert default admin user
     const hashedPassword = bcrypt.hashSync('admin123', 10);

@@ -64,87 +64,11 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// POST /signup - User registration
-router.post('/signup', async (req, res) => {
-  try {
-    const { email, password, name, role, client_code } = req.body;
-
-    if (!email || !password || !name || !role) {
-      return res.status(400).json({ error: 'Email, password, name, and role are required' });
-    }
-
-    // Validate role
-    const validRoles = ['admin', 'employee', 'client'];
-    if (!validRoles.includes(role)) {
-      return res.status(400).json({ error: 'Invalid role' });
-    }
-
-    // Check if email already exists
-    const existingUser = await db.query(
-      'SELECT id FROM users WHERE email = $1',
-      [email]
-    );
-
-    if (existingUser.rows.length > 0) {
-      return res.status(400).json({ error: 'Email already registered' });
-    }
-
-    let clientId = null;
-
-    // For client role, validate client_code
-    if (role === 'client') {
-      if (!client_code) {
-        return res.status(400).json({ error: 'Client code is required for client role' });
-      }
-
-      const clientResult = await db.query(
-        'SELECT id FROM clients WHERE client_code = $1',
-        [client_code]
-      );
-
-      if (clientResult.rows.length === 0) {
-        return res.status(400).json({ error: 'Invalid client code' });
-      }
-
-      clientId = clientResult.rows[0].id;
-    }
-
-    // Hash password
-    const hashedPassword = await authService.hashPassword(password);
-
-    // Create user
-    const newUserResult = await db.query(
-      `INSERT INTO users (email, password_hash, name, role, client_id, is_active, created_at)
-       VALUES ($1, $2, $3, $4, $5, true, NOW())
-       RETURNING id, email, name, role, client_id`,
-      [email, hashedPassword, name, role, clientId]
-    );
-
-    const newUser = newUserResult.rows[0];
-
-    // Generate JWT token
-    const token = authService.generateToken({
-      id: newUser.id,
-      email: newUser.email,
-      role: newUser.role,
-      client_id: newUser.client_id
-    });
-
-    res.status(201).json({
-      token,
-      user: {
-        id: newUser.id,
-        email: newUser.email,
-        name: newUser.name,
-        role: newUser.role,
-        client_id: newUser.client_id,
-        client_code: role === 'client' ? client_code : null
-      }
-    });
-  } catch (error) {
-    console.error('Signup error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+// POST /signup - Disabled (use admin user management instead)
+router.post('/signup', (req, res) => {
+  res.status(403).json({
+    error: 'Public signup is disabled. Please contact an administrator to create an account.'
+  });
 });
 
 // GET /me - Get current authenticated user

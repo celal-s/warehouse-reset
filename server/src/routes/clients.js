@@ -92,7 +92,8 @@ router.get('/:clientCode/inventory', authenticate, clientIsolation, checkClientA
          FROM product_photos pp WHERE pp.product_id = p.id) as photos,
         cpl.sku,
         cpl.asin,
-        cpl.fnsku
+        cpl.fnsku,
+        CASE WHEN cpl.asin IS NOT NULL THEN 'https://m.media-amazon.com/images/I/' || cpl.asin || '._SL250_.jpg' ELSE NULL END as amazon_image_url
       FROM inventory_items i
       JOIN products p ON i.product_id = p.id
       LEFT JOIN storage_locations sl ON i.storage_location_id = sl.id
@@ -143,6 +144,7 @@ router.get('/:clientCode/inventory/:itemId', authenticate, clientIsolation, chec
         cpl.sku,
         cpl.asin,
         cpl.fnsku,
+        CASE WHEN cpl.asin IS NOT NULL THEN 'https://m.media-amazon.com/images/I/' || cpl.asin || '._SL250_.jpg' ELSE NULL END as amazon_image_url,
         (SELECT json_agg(jsonb_build_object('id', cd.id, 'decision', cd.decision, 'shipping_label_url', cd.shipping_label_url, 'notes', cd.notes, 'decided_at', cd.decided_at))
          FROM client_decisions cd WHERE cd.inventory_item_id = i.id) as decision_history
       FROM inventory_items i

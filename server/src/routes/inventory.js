@@ -114,7 +114,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
 // Create inventory item (employee adds from scan)
 router.post('/', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
   try {
-    const { product_id, client_id, storage_location_id, quantity, condition } = req.body;
+    const { product_id, client_id, storage_location_id, quantity, condition, new_location } = req.body;
 
     if (!product_id || !client_id) {
       return res.status(400).json({ error: 'Product ID and Client ID are required' });
@@ -124,11 +124,37 @@ router.post('/', authenticate, authorize('admin', 'employee'), async (req, res, 
       return res.status(400).json({ error: 'Quantity must be a positive number' });
     }
 
+    let locationId = storage_location_id;
+
+    // Create new location if provided
+    if (new_location && new_location.type && new_location.label) {
+      try {
+        const locationResult = await db.query(
+          'INSERT INTO storage_locations (type, label) VALUES ($1, $2) RETURNING id',
+          [new_location.type, new_location.label]
+        );
+        locationId = locationResult.rows[0].id;
+      } catch (err) {
+        if (err.code === '23505') {
+          // Location already exists, fetch it
+          const existing = await db.query(
+            'SELECT id FROM storage_locations WHERE label = $1',
+            [new_location.label]
+          );
+          if (existing.rows.length > 0) {
+            locationId = existing.rows[0].id;
+          }
+        } else {
+          throw err;
+        }
+      }
+    }
+
     const result = await db.query(`
       INSERT INTO inventory_items (product_id, client_id, storage_location_id, quantity, condition, status)
       VALUES ($1, $2, $3, $4, $5, 'awaiting_decision')
       RETURNING *
-    `, [product_id, client_id, storage_location_id, quantity || 1, condition || 'sellable']);
+    `, [product_id, client_id, locationId, quantity || 1, condition || 'sellable']);
 
     // Log activity (fire and forget)
     activityService.log(
@@ -137,7 +163,7 @@ router.post('/', authenticate, authorize('admin', 'employee'), async (req, res, 
       'created',
       'employee',
       'warehouse',
-      { product_id, client_id, quantity, condition }
+      { product_id, client_id, quantity, condition, location_id: locationId }
     ).catch(err => console.error('Activity log failed:', err));
 
     res.status(201).json(result.rows[0]);

@@ -48,7 +48,9 @@ const importService = {
           normalizedRow[key.toLowerCase().trim()] = row[key];
         }
 
-        const upc = normalizedRow.upc || normalizedRow.barcode || null;
+        // Handle multi-value UPCs - take first one
+        const upcRaw = normalizedRow.upc || normalizedRow.barcode || '';
+        const upc = upcRaw.toString().split(/[;\n\r]/)[0].trim() || null;
         const title = normalizedRow.title || normalizedRow.name || normalizedRow['product name'] || 'Unknown Product';
         const sku = normalizedRow.sku || normalizedRow['seller sku'] || null;
         const asin = normalizedRow.asin || null;
@@ -92,11 +94,12 @@ const importService = {
           DO UPDATE SET sku = $4, asin = $5, fnsku = $6
         `, [productId, clientId, marketplaceId, sku, asin, fnsku]);
 
-        // Create inventory item for client
+        // Create inventory item for client (upsert - increment quantity if exists)
         await db.query(`
           INSERT INTO inventory_items (product_id, client_id, quantity, condition, status)
           VALUES ($1, $2, 1, 'sellable', 'awaiting_decision')
-          ON CONFLICT DO NOTHING
+          ON CONFLICT (product_id, client_id)
+          DO UPDATE SET quantity = inventory_items.quantity + 1, updated_at = CURRENT_TIMESTAMP
         `, [productId, clientId]);
 
       } catch (error) {

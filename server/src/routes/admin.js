@@ -4,6 +4,7 @@ const multer = require('multer');
 const db = require('../db');
 const importService = require('../services/importService');
 const activityService = require('../services/activityService');
+const authService = require('../services/authService');
 const { authenticate, authorize } = require('../middleware/auth');
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -208,6 +209,271 @@ router.get('/marketplaces', authenticate, authorize('admin'), async (req, res, n
   try {
     const result = await db.query('SELECT * FROM marketplaces ORDER BY code');
     res.json(result.rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ==================== USER MANAGEMENT ====================
+
+// Get all users
+router.get('/users', authenticate, authorize('admin'), async (req, res, next) => {
+  try {
+    const result = await db.query(`
+      SELECT u.id, u.email, u.name, u.role, u.client_id, u.is_active, u.created_at,
+             c.client_code, c.name as client_name
+      FROM users u
+      LEFT JOIN clients c ON u.client_id = c.id
+      ORDER BY u.created_at DESC
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get single user
+router.get('/users/:id', authenticate, authorize('admin'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await db.query(`
+      SELECT u.id, u.email, u.name, u.role, u.client_id, u.is_active, u.created_at,
+             c.client_code, c.name as client_name
+      FROM users u
+      LEFT JOIN clients c ON u.client_id = c.id
+      WHERE u.id = $1
+    `, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Create new user (admin only)
+router.post('/users', authenticate, authorize('admin'), async (req, res, next) => {
+  try {
+    const { email, password, name, role, client_code } = req.body;
+
+    if (!email || !password || !name || !role) {
+      return res.status(400).json({ error: 'Email, password, name, and role are required' });
+    }
+
+    // Validate role
+    const validRoles = ['admin', 'employee', 'client'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    // Check if email already exists
+    const existingUser = await db.query(
+      'SELECT id FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({ error: 'Email already registered' });
+    }
+
+    let clientId = null;
+
+    // For client role, validate client_code
+    if (role === 'client') {
+      if (!client_code) {
+        return res.status(400).json({ error: 'Client code is required for client role' });
+      }
+
+      const clientResult = await db.query(
+        'SELECT id FROM clients WHERE client_code = $1',
+        [client_code]
+      );
+
+      if (clientResult.rows.length === 0) {
+        return res.status(400).json({ error: 'Invalid client code' });
+      }
+
+      clientId = clientResult.rows[0].id;
+    }
+
+    // Hash password
+    const hashedPassword = await authService.hashPassword(password);
+
+    // Create user
+    const result = await db.query(`
+      INSERT INTO users (email, password_hash, name, role, client_id, is_active)
+      VALUES ($1, $2, $3, $4, $5, true)
+      RETURNING id, email, name, role, client_id, is_active, created_at
+    `, [email, hashedPassword, name, role, clientId]);
+
+    const newUser = result.rows[0];
+
+    // Log activity
+    activityService.log(
+      'user',
+      newUser.id,
+      'user_created',
+      'admin',
+      req.user.email,
+      { email: newUser.email, role: newUser.role }
+    ).catch(err => console.error('Activity log failed:', err));
+
+    res.status(201).json({
+      ...newUser,
+      client_code: role === 'client' ? client_code : null
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Update user (name, role, is_active)
+router.patch('/users/:id', authenticate, authorize('admin'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { name, role, is_active, client_code } = req.body;
+
+    // Prevent admin from deactivating themselves
+    if (parseInt(id) === req.user.id && is_active === false) {
+      return res.status(400).json({ error: 'Cannot deactivate your own account' });
+    }
+
+    const updates = [];
+    const params = [];
+    let paramIndex = 1;
+
+    if (name !== undefined) {
+      updates.push(`name = $${paramIndex}`);
+      params.push(name);
+      paramIndex++;
+    }
+
+    if (role !== undefined) {
+      const validRoles = ['admin', 'employee', 'client'];
+      if (!validRoles.includes(role)) {
+        return res.status(400).json({ error: 'Invalid role' });
+      }
+      updates.push(`role = $${paramIndex}`);
+      params.push(role);
+      paramIndex++;
+    }
+
+    if (is_active !== undefined) {
+      updates.push(`is_active = $${paramIndex}`);
+      params.push(is_active);
+      paramIndex++;
+    }
+
+    // Handle client_id update
+    if (client_code !== undefined) {
+      if (client_code === null || client_code === '') {
+        updates.push(`client_id = NULL`);
+      } else {
+        const clientResult = await db.query(
+          'SELECT id FROM clients WHERE client_code = $1',
+          [client_code]
+        );
+        if (clientResult.rows.length === 0) {
+          return res.status(400).json({ error: 'Invalid client code' });
+        }
+        updates.push(`client_id = $${paramIndex}`);
+        params.push(clientResult.rows[0].id);
+        paramIndex++;
+      }
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No updates provided' });
+    }
+
+    params.push(id);
+
+    const result = await db.query(`
+      UPDATE users SET ${updates.join(', ')}
+      WHERE id = $${paramIndex}
+      RETURNING id, email, name, role, client_id, is_active, created_at
+    `, params);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Get client_code if applicable
+    const user = result.rows[0];
+    if (user.client_id) {
+      const clientResult = await db.query(
+        'SELECT client_code FROM clients WHERE id = $1',
+        [user.client_id]
+      );
+      user.client_code = clientResult.rows[0]?.client_code;
+    }
+
+    res.json(user);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Reset user password
+router.post('/users/:id/reset-password', authenticate, authorize('admin'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { password } = req.body;
+
+    if (!password || password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    const hashedPassword = await authService.hashPassword(password);
+
+    const result = await db.query(
+      'UPDATE users SET password_hash = $1 WHERE id = $2 RETURNING id, email',
+      [hashedPassword, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Log activity
+    activityService.log(
+      'user',
+      parseInt(id),
+      'password_reset',
+      'admin',
+      req.user.email,
+      { target_user_email: result.rows[0].email }
+    ).catch(err => console.error('Activity log failed:', err));
+
+    res.json({ message: 'Password reset successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Delete (deactivate) user
+router.delete('/users/:id', authenticate, authorize('admin'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Prevent admin from deleting themselves
+    if (parseInt(id) === req.user.id) {
+      return res.status(400).json({ error: 'Cannot delete your own account' });
+    }
+
+    const result = await db.query(
+      'UPDATE users SET is_active = false WHERE id = $1 RETURNING id, email, name',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ message: 'User deactivated', user: result.rows[0] });
   } catch (error) {
     next(error);
   }

@@ -6,7 +6,7 @@ const searchService = {
     const searchTerm = `%${query}%`;
 
     let sql = `
-      SELECT DISTINCT
+      SELECT
         p.id,
         p.upc,
         p.title,
@@ -17,7 +17,8 @@ const searchService = {
           'sku', cpl.sku,
           'asin', cpl.asin,
           'fnsku', cpl.fnsku,
-          'marketplace', m.code
+          'marketplace', m.code,
+          'amazon_image_url', CASE WHEN cpl.asin IS NOT NULL THEN 'https://m.media-amazon.com/images/I/' || cpl.asin || '._SL250_.jpg' ELSE NULL END
         )) FILTER (WHERE c.id IS NOT NULL) as client_listings
       FROM products p
       LEFT JOIN client_product_listings cpl ON p.id = cpl.product_id
@@ -63,7 +64,8 @@ const searchService = {
           'sku', cpl.sku,
           'asin', cpl.asin,
           'fnsku', cpl.fnsku,
-          'marketplace', m.code
+          'marketplace', m.code,
+          'amazon_image_url', CASE WHEN cpl.asin IS NOT NULL THEN 'https://m.media-amazon.com/images/I/' || cpl.asin || '._SL250_.jpg' ELSE NULL END
         )) FILTER (WHERE c.id IS NOT NULL) as client_listings,
         (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type))
          FROM product_photos pp WHERE pp.product_id = p.id) as photos,

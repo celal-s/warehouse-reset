@@ -22,6 +22,11 @@ export default function EmployeeScan() {
   const [needsPhoto, setNeedsPhoto] = useState(false)
   const [photoUploaded, setPhotoUploaded] = useState(false)
 
+  // New location form
+  const [showNewLocation, setShowNewLocation] = useState(false)
+  const [newLocationType, setNewLocationType] = useState('pallet')
+  const [newLocationLabel, setNewLocationLabel] = useState('')
+
   const [success, setSuccess] = useState(null)
 
   useEffect(() => {
@@ -92,17 +97,32 @@ export default function EmployeeScan() {
       return
     }
 
+    if (showNewLocation && !newLocationLabel.trim()) {
+      setError('Please enter a location label')
+      return
+    }
+
     setLoading(true)
     setError(null)
 
     try {
-      await createInventoryItem({
+      const inventoryData = {
         product_id: product.id,
         client_id: selectedClient.client_id,
-        storage_location_id: locationId || null,
         quantity,
         condition
-      })
+      }
+
+      if (showNewLocation && newLocationLabel.trim()) {
+        inventoryData.new_location = {
+          type: newLocationType,
+          label: newLocationLabel.trim()
+        }
+      } else if (locationId) {
+        inventoryData.storage_location_id = locationId
+      }
+
+      await createInventoryItem(inventoryData)
 
       setSuccess(`Added ${quantity}x "${product.title}" for client ${selectedClient.client_code}`)
 
@@ -112,8 +132,14 @@ export default function EmployeeScan() {
       setQuantity(1)
       setCondition('sellable')
       setLocationId('')
+      setShowNewLocation(false)
+      setNewLocationType('pallet')
+      setNewLocationLabel('')
       setNeedsPhoto(false)
       setPhotoUploaded(false)
+
+      // Refresh locations list
+      getLocations().then(setLocations).catch(console.error)
 
       // Clear success after 3 seconds
       setTimeout(() => setSuccess(null), 3000)
@@ -186,9 +212,9 @@ export default function EmployeeScan() {
             )}
 
             {/* Product Photos */}
-            {product.photos && product.photos.length > 0 && (
+            {(product.photos && product.photos.length > 0) || (selectedClient?.amazon_image_url) ? (
               <div className="mt-4 flex gap-2 overflow-x-auto">
-                {product.photos.map((photo) => (
+                {product.photos?.map((photo) => (
                   <img
                     key={photo.id}
                     src={photo.url}
@@ -196,8 +222,16 @@ export default function EmployeeScan() {
                     className="w-20 h-20 object-cover rounded-lg border"
                   />
                 ))}
+                {selectedClient?.amazon_image_url && !product.photos?.length && (
+                  <img
+                    src={selectedClient.amazon_image_url}
+                    alt="Amazon Product"
+                    className="w-20 h-20 object-cover rounded-lg border"
+                    onError={(e) => { e.target.style.display = 'none' }}
+                  />
+                )}
               </div>
-            )}
+            ) : null}
           </div>
 
           {/* Client Selection */}
@@ -291,21 +325,64 @@ export default function EmployeeScan() {
 
           {/* Storage Location */}
           <div className="p-6 border-b">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Storage Location (optional)
-            </label>
-            <select
-              value={locationId}
-              onChange={(e) => setLocationId(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">-- Select location --</option>
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.id}>
-                  {loc.label} ({loc.type})
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-gray-700">
+                Storage Location (optional)
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNewLocation(!showNewLocation)
+                  if (!showNewLocation) setLocationId('')
+                }}
+                className="text-sm text-blue-600 hover:text-blue-800"
+              >
+                {showNewLocation ? 'Select existing' : '+ New location'}
+              </button>
+            </div>
+
+            {showNewLocation ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Type</label>
+                    <select
+                      value={newLocationType}
+                      onChange={(e) => setNewLocationType(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="pallet">Pallet</option>
+                      <option value="box">Box</option>
+                      <option value="shelf">Shelf</option>
+                      <option value="bin">Bin</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Label *</label>
+                    <input
+                      type="text"
+                      value={newLocationLabel}
+                      onChange={(e) => setNewLocationLabel(e.target.value)}
+                      placeholder="e.g., P-004"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <select
+                value={locationId}
+                onChange={(e) => setLocationId(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">-- Select location --</option>
+                {locations.map((loc) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.label} ({loc.type})
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Submit */}
