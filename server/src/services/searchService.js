@@ -10,8 +10,8 @@ const searchService = {
         p.id,
         p.upc,
         p.title,
-        p.warehouse_notes,
-        p.warehouse_condition,
+        COALESCE(p.warehouse_notes, '') as warehouse_notes,
+        COALESCE(p.warehouse_condition, '') as warehouse_condition,
         (SELECT pp.photo_url FROM product_photos pp WHERE pp.product_id = p.id ORDER BY pp.uploaded_at DESC LIMIT 1) as display_image_url,
         json_agg(DISTINCT jsonb_build_object(
           'client_id', c.id,
@@ -21,7 +21,7 @@ const searchService = {
           'asin', cpl.asin,
           'fnsku', cpl.fnsku,
           'marketplace', m.code,
-          'image_url', cpl.image_url
+          'amazon_url', CASE WHEN cpl.asin IS NOT NULL THEN 'https://www.amazon.com/dp/' || cpl.asin ELSE NULL END
         )) FILTER (WHERE c.id IS NOT NULL) as client_listings
       FROM products p
       LEFT JOIN client_product_listings cpl ON p.id = cpl.product_id
@@ -60,8 +60,8 @@ const searchService = {
         p.id,
         p.upc,
         p.title,
-        p.warehouse_notes,
-        p.warehouse_condition,
+        COALESCE(p.warehouse_notes, '') as warehouse_notes,
+        COALESCE(p.warehouse_condition, '') as warehouse_condition,
         json_agg(DISTINCT jsonb_build_object(
           'client_id', c.id,
           'client_code', c.client_code,
@@ -70,9 +70,9 @@ const searchService = {
           'asin', cpl.asin,
           'fnsku', cpl.fnsku,
           'marketplace', m.code,
-          'image_url', cpl.image_url
+          'amazon_url', CASE WHEN cpl.asin IS NOT NULL THEN 'https://www.amazon.com/dp/' || cpl.asin ELSE NULL END
         )) FILTER (WHERE c.id IS NOT NULL) as client_listings,
-        (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type, 'source', pp.photo_source))
+        (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type, 'source', COALESCE(pp.photo_source, 'warehouse')))
          FROM product_photos pp WHERE pp.product_id = p.id) as photos,
         (SELECT COUNT(*) FROM product_photos pp WHERE pp.product_id = p.id) > 0 as has_photos
       FROM products p

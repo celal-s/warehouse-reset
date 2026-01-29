@@ -44,10 +44,10 @@ router.get('/:id', authenticate, async (req, res, next) => {
         p.id,
         p.upc,
         p.title,
-        p.warehouse_notes,
-        p.warehouse_condition,
+        COALESCE(p.warehouse_notes, '') as warehouse_notes,
+        COALESCE(p.warehouse_condition, '') as warehouse_condition,
         p.created_at,
-        p.updated_at,
+        COALESCE(p.updated_at, p.created_at) as updated_at,
         json_agg(DISTINCT jsonb_build_object(
           'client_id', c.id,
           'client_code', c.client_code,
@@ -56,9 +56,9 @@ router.get('/:id', authenticate, async (req, res, next) => {
           'asin', cpl.asin,
           'fnsku', cpl.fnsku,
           'marketplace', m.code,
-          'image_url', cpl.image_url
+          'amazon_url', CASE WHEN cpl.asin IS NOT NULL THEN 'https://www.amazon.com/dp/' || cpl.asin ELSE NULL END
         )) FILTER (WHERE c.id IS NOT NULL) as client_listings,
-        (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type, 'source', pp.photo_source))
+        (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type, 'source', COALESCE(pp.photo_source, 'warehouse')))
          FROM product_photos pp WHERE pp.product_id = p.id) as photos
       FROM products p
       LEFT JOIN client_product_listings cpl ON p.id = cpl.product_id
@@ -89,10 +89,10 @@ router.get('/:id/detail', authenticate, async (req, res, next) => {
         p.id,
         p.upc,
         p.title,
-        p.warehouse_notes,
-        p.warehouse_condition,
+        COALESCE(p.warehouse_notes, '') as warehouse_notes,
+        COALESCE(p.warehouse_condition, '') as warehouse_condition,
         p.created_at,
-        p.updated_at
+        COALESCE(p.updated_at, p.created_at) as updated_at
       FROM products p
       WHERE p.id = $1
     `, [id]);
@@ -112,7 +112,7 @@ router.get('/:id/detail', authenticate, async (req, res, next) => {
         cpl.sku,
         cpl.asin,
         cpl.fnsku,
-        cpl.image_url,
+        CASE WHEN cpl.asin IS NOT NULL THEN 'https://www.amazon.com/dp/' || cpl.asin ELSE NULL END as amazon_url,
         m.code as marketplace
       FROM client_product_listings cpl
       JOIN clients c ON cpl.client_id = c.id
@@ -122,7 +122,7 @@ router.get('/:id/detail', authenticate, async (req, res, next) => {
 
     // Get photos (warehouse and listing)
     const photosResult = await db.query(`
-      SELECT id, photo_url as url, photo_type as type, photo_source as source, uploaded_at
+      SELECT id, photo_url as url, photo_type as type, COALESCE(photo_source, 'warehouse') as source, uploaded_at
       FROM product_photos
       WHERE product_id = $1
       ORDER BY uploaded_at DESC
@@ -134,13 +134,13 @@ router.get('/:id/detail', authenticate, async (req, res, next) => {
       listing: photosResult.rows.filter(p => p.source === 'listing')
     };
 
-    // Add client-provided listing images
+    // Add Amazon product page URLs as listing references
     listingsResult.rows.forEach(listing => {
-      if (listing.image_url) {
+      if (listing.amazon_url) {
         photos.listing.push({
-          url: listing.image_url,
-          type: 'listing',
-          source: 'client_import',
+          url: listing.amazon_url,
+          type: 'amazon_product_page',
+          source: 'amazon',
           client_code: listing.client_code
         });
       }

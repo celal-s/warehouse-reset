@@ -81,9 +81,9 @@ router.get('/:clientCode/inventory', authenticate, clientIsolation, checkClientA
         i.status,
         i.client_decision,
         i.decision_notes,
-        i.received_at,
-        i.condition_notes,
-        i.lot_number,
+        COALESCE(i.received_at, i.created_at) as received_at,
+        COALESCE(i.condition_notes, '') as condition_notes,
+        COALESCE(i.lot_number, '') as lot_number,
         i.created_at,
         i.updated_at,
         p.id as product_id,
@@ -91,7 +91,7 @@ router.get('/:clientCode/inventory', authenticate, clientIsolation, checkClientA
         p.title as product_title,
         sl.label as location_label,
         sl.type as location_type,
-        (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type, 'source', pp.photo_source))
+        (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type, 'source', COALESCE(pp.photo_source, 'warehouse')))
          FROM product_photos pp WHERE pp.product_id = p.id) as photos,
         (SELECT json_agg(jsonb_build_object('id', ip.id, 'url', ip.photo_url, 'type', ip.photo_type, 'notes', ip.notes))
          FROM inventory_photos ip WHERE ip.inventory_item_id = i.id) as inventory_photos,
@@ -100,8 +100,9 @@ router.get('/:clientCode/inventory', authenticate, clientIsolation, checkClientA
         cpl.fnsku,
         COALESCE(
           (SELECT pp.photo_url FROM product_photos pp WHERE pp.product_id = p.id ORDER BY pp.uploaded_at DESC LIMIT 1),
-          cpl.image_url
-        ) as display_image_url
+          CASE WHEN cpl.asin IS NOT NULL THEN 'https://www.amazon.com/dp/' || cpl.asin ELSE NULL END
+        ) as display_image_url,
+        CASE WHEN cpl.asin IS NOT NULL THEN 'https://www.amazon.com/dp/' || cpl.asin ELSE NULL END as amazon_url
       FROM inventory_items i
       JOIN products p ON i.product_id = p.id
       LEFT JOIN storage_locations sl ON i.storage_location_id = sl.id
@@ -141,26 +142,40 @@ router.get('/:clientCode/inventory/:itemId', authenticate, clientIsolation, chec
 
     const result = await db.query(`
       SELECT
-        i.*,
+        i.id,
+        i.product_id,
+        i.client_id,
+        i.storage_location_id,
+        i.quantity,
+        i.condition,
+        i.status,
+        i.client_decision,
+        i.decision_notes,
+        COALESCE(i.received_at, i.created_at) as received_at,
+        COALESCE(i.condition_notes, '') as condition_notes,
+        COALESCE(i.lot_number, '') as lot_number,
+        i.created_at,
+        i.updated_at,
         p.id as product_id,
         p.upc,
         p.title as product_title,
-        p.warehouse_notes,
-        p.warehouse_condition,
+        COALESCE(p.warehouse_notes, '') as warehouse_notes,
+        COALESCE(p.warehouse_condition, '') as warehouse_condition,
         sl.label as location_label,
         sl.type as location_type,
-        (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type, 'source', pp.photo_source))
+        (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type, 'source', COALESCE(pp.photo_source, 'warehouse')))
          FROM product_photos pp WHERE pp.product_id = p.id) as photos,
         (SELECT json_agg(jsonb_build_object('id', ip.id, 'url', ip.photo_url, 'type', ip.photo_type, 'notes', ip.notes, 'uploaded_at', ip.uploaded_at))
          FROM inventory_photos ip WHERE ip.inventory_item_id = i.id) as inventory_photos,
         cpl.sku,
         cpl.asin,
         cpl.fnsku,
-        cpl.image_url as listing_image_url,
+        CASE WHEN cpl.asin IS NOT NULL THEN 'https://www.amazon.com/dp/' || cpl.asin ELSE NULL END as listing_image_url,
         COALESCE(
           (SELECT pp.photo_url FROM product_photos pp WHERE pp.product_id = p.id ORDER BY pp.uploaded_at DESC LIMIT 1),
-          cpl.image_url
+          CASE WHEN cpl.asin IS NOT NULL THEN 'https://www.amazon.com/dp/' || cpl.asin ELSE NULL END
         ) as display_image_url,
+        CASE WHEN cpl.asin IS NOT NULL THEN 'https://www.amazon.com/dp/' || cpl.asin ELSE NULL END as amazon_url,
         (SELECT json_agg(jsonb_build_object('id', cd.id, 'decision', cd.decision, 'shipping_label_url', cd.shipping_label_url, 'notes', cd.notes, 'decided_at', cd.decided_at))
          FROM client_decisions cd WHERE cd.inventory_item_id = i.id) as decision_history,
         (SELECT json_agg(jsonb_build_object(
@@ -201,17 +216,18 @@ router.get('/:clientCode/products', authenticate, clientIsolation, checkClientAc
         p.id,
         p.upc,
         p.title,
-        p.warehouse_notes,
-        p.warehouse_condition,
+        COALESCE(p.warehouse_notes, '') as warehouse_notes,
+        COALESCE(p.warehouse_condition, '') as warehouse_condition,
         cpl.sku,
         cpl.asin,
         cpl.fnsku,
-        cpl.image_url as listing_image_url,
+        CASE WHEN cpl.asin IS NOT NULL THEN 'https://www.amazon.com/dp/' || cpl.asin ELSE NULL END as listing_image_url,
         COALESCE(
           (SELECT pp.photo_url FROM product_photos pp WHERE pp.product_id = p.id ORDER BY pp.uploaded_at DESC LIMIT 1),
-          cpl.image_url
+          CASE WHEN cpl.asin IS NOT NULL THEN 'https://www.amazon.com/dp/' || cpl.asin ELSE NULL END
         ) as display_image_url,
-        (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type, 'source', pp.photo_source))
+        CASE WHEN cpl.asin IS NOT NULL THEN 'https://www.amazon.com/dp/' || cpl.asin ELSE NULL END as amazon_url,
+        (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type, 'source', COALESCE(pp.photo_source, 'warehouse')))
          FROM product_photos pp WHERE pp.product_id = p.id) as photos,
         COALESCE(
           (SELECT SUM(ii.quantity) FROM inventory_items ii WHERE ii.product_id = p.id AND ii.client_id = $1),
@@ -241,19 +257,20 @@ router.get('/:clientCode/products/:productId', authenticate, clientIsolation, ch
         p.id,
         p.upc,
         p.title,
-        p.warehouse_notes,
-        p.warehouse_condition,
+        COALESCE(p.warehouse_notes, '') as warehouse_notes,
+        COALESCE(p.warehouse_condition, '') as warehouse_condition,
         p.created_at,
-        p.updated_at,
+        COALESCE(p.updated_at, p.created_at) as updated_at,
         cpl.sku,
         cpl.asin,
         cpl.fnsku,
-        cpl.image_url as listing_image_url,
+        CASE WHEN cpl.asin IS NOT NULL THEN 'https://www.amazon.com/dp/' || cpl.asin ELSE NULL END as listing_image_url,
         COALESCE(
           (SELECT pp.photo_url FROM product_photos pp WHERE pp.product_id = p.id ORDER BY pp.uploaded_at DESC LIMIT 1),
-          cpl.image_url
+          CASE WHEN cpl.asin IS NOT NULL THEN 'https://www.amazon.com/dp/' || cpl.asin ELSE NULL END
         ) as display_image_url,
-        (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type, 'source', pp.photo_source))
+        CASE WHEN cpl.asin IS NOT NULL THEN 'https://www.amazon.com/dp/' || cpl.asin ELSE NULL END as amazon_url,
+        (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type, 'source', COALESCE(pp.photo_source, 'warehouse')))
          FROM product_photos pp WHERE pp.product_id = p.id) as photos,
         COALESCE(
           (SELECT SUM(ii.quantity) FROM inventory_items ii WHERE ii.product_id = p.id AND ii.client_id = $2),

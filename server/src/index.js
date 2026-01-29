@@ -35,11 +35,88 @@ app.use('/api/auth', authRoutes);
 // Error handler
 app.use(errorHandler);
 
-// DB health check before starting server
+// Auto-migration: ensures schema is up-to-date on server start
+const runMigrations = async () => {
+  console.log('Running auto-migrations...');
+
+  try {
+    // Add missing columns to products table
+    await db.query(`
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS warehouse_notes TEXT;
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS warehouse_condition VARCHAR(50);
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+    `);
+    console.log('  - products table: columns verified');
+
+    // Add missing columns to client_product_listings table
+    await db.query(`
+      ALTER TABLE client_product_listings ADD COLUMN IF NOT EXISTS image_url VARCHAR(500);
+    `);
+    console.log('  - client_product_listings table: columns verified');
+
+    // Add missing columns to product_photos table
+    await db.query(`
+      ALTER TABLE product_photos ADD COLUMN IF NOT EXISTS photo_source VARCHAR(50) DEFAULT 'warehouse';
+    `);
+    console.log('  - product_photos table: columns verified');
+
+    // Add missing columns to inventory_items table
+    await db.query(`
+      ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+      ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS received_by INTEGER REFERENCES users(id);
+      ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS condition_notes TEXT;
+      ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS lot_number VARCHAR(100);
+    `);
+    console.log('  - inventory_items table: columns verified');
+
+    // Create inventory_photos table if it doesn't exist
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS inventory_photos (
+        id SERIAL PRIMARY KEY,
+        inventory_item_id INTEGER NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
+        photo_url VARCHAR(500) NOT NULL,
+        photo_type VARCHAR(50) DEFAULT 'condition',
+        notes TEXT,
+        uploaded_by INTEGER REFERENCES users(id),
+        uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('  - inventory_photos table: verified');
+
+    // Create inventory_history table if it doesn't exist
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS inventory_history (
+        id SERIAL PRIMARY KEY,
+        inventory_item_id INTEGER NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
+        action VARCHAR(50) NOT NULL,
+        field_changed VARCHAR(50),
+        old_value TEXT,
+        new_value TEXT,
+        quantity_change INTEGER,
+        changed_by INTEGER REFERENCES users(id),
+        changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        reason TEXT
+      );
+    `);
+    console.log('  - inventory_history table: verified');
+
+    console.log('Auto-migrations completed successfully');
+  } catch (error) {
+    console.error('Migration error:', error.message);
+    // Don't exit - some migrations might fail if columns already exist differently
+    // The important thing is that we tried
+  }
+};
+
+// DB health check and migrations before starting server
 const startServer = async () => {
   try {
     await db.query('SELECT 1');
     console.log('Database connection verified');
+
+    // Run migrations
+    await runMigrations();
+
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });

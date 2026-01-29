@@ -55,7 +55,8 @@ const importService = {
         const sku = normalizedRow.sku || normalizedRow['seller sku'] || null;
         const asin = normalizedRow.asin || null;
         const fnsku = normalizedRow.fnsku || null;
-        const imageUrl = normalizedRow.image_url || normalizedRow['image url'] || normalizedRow.image || null;
+        // Note: We don't import image_url from client files anymore
+        // Images are generated from ASIN via Amazon URL pattern
 
         // Check if product exists by UPC
         let productId;
@@ -87,13 +88,13 @@ const importService = {
           results.updated++;
         }
 
-        // Create or update client product listing (including image_url from import)
+        // Create or update client product listing (no image_url - use Amazon ASIN pattern)
         await db.query(`
-          INSERT INTO client_product_listings (product_id, client_id, marketplace_id, sku, asin, fnsku, image_url)
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
+          INSERT INTO client_product_listings (product_id, client_id, marketplace_id, sku, asin, fnsku)
+          VALUES ($1, $2, $3, $4, $5, $6)
           ON CONFLICT (product_id, client_id, marketplace_id)
-          DO UPDATE SET sku = $4, asin = $5, fnsku = $6, image_url = COALESCE($7, client_product_listings.image_url)
-        `, [productId, clientId, marketplaceId, sku, asin, fnsku, imageUrl]);
+          DO UPDATE SET sku = $4, asin = $5, fnsku = $6
+        `, [productId, clientId, marketplaceId, sku, asin, fnsku]);
 
         // NOTE: Import creates catalog only - inventory is NOT created here
         // Inventory is created when items are physically received at the warehouse
