@@ -23,8 +23,7 @@ router.post('/signature/photo', authenticate, async (req, res, next) => {
     const params = {
       timestamp,
       folder: 'warehouse/products',
-      public_id: `product_${product_id}_${timestamp}`,
-      transformation: 'c_limit,w_1200,h_1200,q_auto'
+      public_id: `product_${product_id}_${timestamp}`
     };
 
     const signature = cloudinary.utils.api_sign_request(params, process.env.CLOUDINARY_API_SECRET);
