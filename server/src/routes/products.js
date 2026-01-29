@@ -324,8 +324,8 @@ router.get('/:id/history', authenticate, async (req, res, next) => {
         al.id,
         al.action,
         al.actor_type,
-        al.actor_name,
-        al.metadata,
+        al.actor_identifier as actor_name,
+        al.details as metadata,
         al.created_at
       FROM activity_log al
       WHERE (al.entity_type = 'product' AND al.entity_id = $1)
