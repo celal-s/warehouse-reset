@@ -93,7 +93,6 @@ export default function DbBrowserRecord() {
   return (
     <Layout
       title={`${table} #${id}`}
-     `}
       navItems={adminNavItems}
     >
       {/* Breadcrumb */}
