@@ -280,7 +280,7 @@ router.get('/diagnostics/duplicates', authenticate, authorize('admin'), async (r
 // Cleanup duplicate products
 router.post('/diagnostics/cleanup', authenticate, authorize('admin'), async (req, res, next) => {
   try {
-    const results = { upcMerges: 0, orphansDeleted: 0, errors: [] };
+    const results = { upcMerges: 0, asinMerges: 0, orphansDeleted: 0, errors: [] };
 
     // 1. Merge UPC duplicates (keep lowest ID)
     await db.query(`
@@ -337,7 +337,61 @@ router.post('/diagnostics/cleanup', authenticate, authorize('admin'), async (req
 
     await db.query('DROP TABLE IF EXISTS product_merge_map');
 
-    // 2. Delete orphan products
+    // 2. Merge ASIN duplicates (products sharing same ASIN+client+marketplace)
+    // Create merge map based on ASIN+client+marketplace groups (keep lowest product_id)
+    await db.query(`
+      CREATE TEMP TABLE IF NOT EXISTS asin_merge_map AS
+      WITH duplicate_groups AS (
+        SELECT cpl.asin, cpl.client_id, cpl.marketplace_id,
+               MIN(cpl.product_id) as canonical_id
+        FROM client_product_listings cpl
+        WHERE cpl.asin IS NOT NULL
+        GROUP BY cpl.asin, cpl.client_id, cpl.marketplace_id
+        HAVING COUNT(DISTINCT cpl.product_id) > 1
+      )
+      SELECT cpl.product_id as duplicate_id, dg.canonical_id
+      FROM client_product_listings cpl
+      JOIN duplicate_groups dg ON cpl.asin = dg.asin
+        AND cpl.client_id = dg.client_id
+        AND cpl.marketplace_id = dg.marketplace_id
+      WHERE cpl.product_id != dg.canonical_id
+    `);
+
+    const asinMergeCount = await db.query('SELECT COUNT(DISTINCT duplicate_id) as count FROM asin_merge_map');
+
+    if (parseInt(asinMergeCount.rows[0].count) > 0) {
+      // Update inventory_items references
+      await db.query(`
+        UPDATE inventory_items SET product_id = m.canonical_id
+        FROM asin_merge_map m WHERE product_id = m.duplicate_id
+      `);
+
+      // Update product_photos references
+      await db.query(`
+        UPDATE product_photos SET product_id = m.canonical_id
+        FROM asin_merge_map m WHERE product_id = m.duplicate_id
+      `);
+
+      // Delete the duplicate listings (they're redundant - same ASIN+client+marketplace)
+      await db.query(`
+        DELETE FROM client_product_listings cpl
+        USING asin_merge_map m
+        WHERE cpl.product_id = m.duplicate_id
+      `);
+
+      // Delete duplicate products (only those with no remaining references)
+      const asinDeleteResult = await db.query(`
+        DELETE FROM products p
+        WHERE p.id IN (SELECT DISTINCT duplicate_id FROM asin_merge_map)
+          AND NOT EXISTS (SELECT 1 FROM client_product_listings WHERE product_id = p.id)
+          AND NOT EXISTS (SELECT 1 FROM inventory_items WHERE product_id = p.id)
+      `);
+      results.asinMerges = asinDeleteResult.rowCount;
+    }
+
+    await db.query('DROP TABLE IF EXISTS asin_merge_map');
+
+    // 3. Delete orphan products
     const orphanResult = await db.query(`
       DELETE FROM products p
       WHERE NOT EXISTS (SELECT 1 FROM client_product_listings WHERE product_id = p.id)
