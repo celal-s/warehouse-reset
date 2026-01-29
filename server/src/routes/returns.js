@@ -5,6 +5,7 @@ const db = require('../db');
 const activityService = require('../services/activityService');
 const returnsService = require('../services/returnsService');
 const returnLabelParser = require('../services/returnLabelParser');
+const cloudinaryService = require('../services/cloudinaryService');
 const { authenticate, authorize } = require('../middleware/auth');
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -237,6 +238,8 @@ router.post('/import-backlog', authenticate, authorize('admin'), upload.array('f
       failed: 0,
       matched: 0,
       unmatched: 0,
+      uploaded: 0,
+      uploadFailed: 0,
       errors: []
     };
 
@@ -244,6 +247,21 @@ router.post('/import-backlog', authenticate, authorize('admin'), upload.array('f
       try {
         // Parse the PDF file with product matching
         const parsedData = await returnLabelParser.parseFromBuffer(file.buffer, file.originalname, db);
+
+        // Upload PDF to Cloudinary
+        let labelUrl = null;
+        const uploadResult = await cloudinaryService.uploadReturnLabel(
+          file.buffer,
+          file.originalname,
+          parsedData.sourceIdentifier
+        );
+
+        if (uploadResult) {
+          labelUrl = uploadResult.secure_url;
+          results.uploaded++;
+        } else {
+          results.uploadFailed++;
+        }
 
         // Determine status based on match
         const status = parsedData.productId ? 'pending' : 'unmatched';
@@ -253,6 +271,7 @@ router.post('/import-backlog', authenticate, authorize('admin'), upload.array('f
           productId: parsedData.productId,
           quantity: parsedData.quantity || 1,
           returnType: 'pre_receipt',
+          labelUrl,
           carrier: parsedData.carrier,
           returnByDate: parsedData.returnByDate,
           sourceIdentifier: parsedData.sourceIdentifier,

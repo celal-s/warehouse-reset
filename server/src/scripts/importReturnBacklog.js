@@ -18,6 +18,7 @@ const path = require('path');
 const db = require('../db');
 const returnLabelParser = require('../services/returnLabelParser');
 const returnsService = require('../services/returnsService');
+const cloudinaryService = require('../services/cloudinaryService');
 
 const RETURN_LABELS_DIR = process.argv[2] || path.join(__dirname, '../../../../return-labels');
 
@@ -94,14 +95,37 @@ async function importBacklog() {
     failed: 0,
     matched: 0,
     unmatched: 0,
+    uploaded: 0,
+    uploadFailed: 0,
     errors: []
   };
 
   // Process each file
   for (const filePath of pdfFiles) {
     try {
+      // Read PDF buffer for both parsing and upload
+      const pdfBuffer = await fs.readFile(filePath);
+      const filename = path.basename(filePath);
+
       // Parse the file
       const parsed = await returnLabelParser.parseReturnLabel(filePath, db);
+
+      // Upload PDF to Cloudinary
+      let labelUrl = null;
+      const uploadResult = await cloudinaryService.uploadReturnLabel(
+        pdfBuffer,
+        filename,
+        parsed.sourceIdentifier
+      );
+
+      if (uploadResult) {
+        labelUrl = uploadResult.secure_url;
+        results.uploaded++;
+        console.log(`  [UPLOAD] ${filename} -> Uploaded to Cloudinary`);
+      } else {
+        results.uploadFailed++;
+        console.log(`  [UPLOAD] ${filename} -> Upload skipped/failed`);
+      }
 
       // Determine status based on match
       const status = parsed.productId ? 'pending' : 'unmatched';
@@ -111,7 +135,7 @@ async function importBacklog() {
         productId: parsed.productId,
         quantity: parsed.quantity || 1,
         returnType: 'pre_receipt',
-        labelUrl: null, // PDF content, not uploaded URL
+        labelUrl,
         carrier: parsed.carrier,
         returnByDate: parsed.returnByDate,
         sourceIdentifier: parsed.sourceIdentifier,
@@ -125,10 +149,10 @@ async function importBacklog() {
       results.successful++;
       if (parsed.productId) {
         results.matched++;
-        console.log(`  [OK] ${path.basename(filePath)} -> Matched to product ${parsed.productId}`);
+        console.log(`  [OK] ${filename} -> Matched to product ${parsed.productId}`);
       } else {
         results.unmatched++;
-        console.log(`  [??] ${path.basename(filePath)} -> Unmatched (${parsed.sourceIdentifier || 'no identifier'})`);
+        console.log(`  [??] ${filename} -> Unmatched (${parsed.sourceIdentifier || 'no identifier'})`);
       }
     } catch (error) {
       results.failed++;
@@ -145,6 +169,8 @@ async function importBacklog() {
   console.log(`  - Matched to products: ${results.matched}`);
   console.log(`  - Unmatched (need review): ${results.unmatched}`);
   console.log(`Failed: ${results.failed}`);
+  console.log(`Uploaded to Cloudinary: ${results.uploaded}`);
+  console.log(`Upload failed/skipped: ${results.uploadFailed}`);
   console.log(`Import Batch ID: ${importBatchId}`);
 
   if (results.errors.length > 0) {
