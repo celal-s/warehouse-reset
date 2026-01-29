@@ -307,28 +307,69 @@ export default function EmployeeScan() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Quantity
                 </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={quantity}
-                  onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                    disabled={quantity <= 1}
+                    className="px-4 py-2 border border-r-0 rounded-l-lg bg-gray-50 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-lg font-medium"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="1"
+                    value={quantity}
+                    onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                    onBlur={(e) => {
+                      const val = parseInt(e.target.value)
+                      if (!val || val < 1) setQuantity(1)
+                    }}
+                    className="w-16 px-2 py-2 border-y text-center focus:ring-2 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setQuantity(q => q + 1)}
+                    className="px-4 py-2 border border-l-0 rounded-r-lg bg-gray-50 hover:bg-gray-100 text-lg font-medium"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Condition
                 </label>
-                <select
-                  value={condition}
-                  onChange={(e) => setCondition(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="sellable">Sellable</option>
-                  <option value="damaged">Damaged</option>
-                  <option value="refurbished">Refurbished</option>
-                  <option value="defective">Defective</option>
-                </select>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCondition('sellable')}
+                    className={`flex-1 px-3 py-2 rounded-lg font-medium flex items-center justify-center gap-1.5 transition-colors ${
+                      condition === 'sellable'
+                        ? 'bg-green-600 text-white'
+                        : 'border-2 border-green-600 text-green-600 hover:bg-green-50'
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Sellable
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCondition('damaged')}
+                    className={`flex-1 px-3 py-2 rounded-lg font-medium flex items-center justify-center gap-1.5 transition-colors ${
+                      condition === 'damaged'
+                        ? 'bg-red-600 text-white'
+                        : 'border-2 border-red-600 text-red-600 hover:bg-red-50'
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    Damaged
+                  </button>
+                </div>
               </div>
             </div>
             {condition !== 'sellable' && (

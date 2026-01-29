@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const cloudinary = require('cloudinary').v2;
+const { authenticate } = require('../middleware/auth');
 
 // Configure Cloudinary
 cloudinary.config({
@@ -14,7 +15,7 @@ if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !pr
 }
 
 // Get Cloudinary signature for direct browser upload (product photos)
-router.post('/signature/photo', async (req, res, next) => {
+router.post('/signature/photo', authenticate, async (req, res, next) => {
   try {
     const timestamp = Math.round(new Date().getTime() / 1000);
     const { product_id } = req.body;
@@ -41,7 +42,7 @@ router.post('/signature/photo', async (req, res, next) => {
 });
 
 // Get Cloudinary signature for shipping label PDF upload
-router.post('/signature/label', async (req, res, next) => {
+router.post('/signature/label', authenticate, async (req, res, next) => {
   try {
     const timestamp = Math.round(new Date().getTime() / 1000);
     const { inventory_item_id } = req.body;
