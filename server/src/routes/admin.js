@@ -227,6 +227,143 @@ router.get('/marketplaces', authenticate, authorize('admin'), async (req, res, n
   }
 });
 
+// ==================== DATABASE DIAGNOSTICS ====================
+
+// Get product duplicate diagnostics
+router.get('/diagnostics/duplicates', authenticate, authorize('admin'), async (req, res, next) => {
+  try {
+    // 1. Find duplicate UPCs
+    const dupUpc = await db.query(`
+      SELECT upc, COUNT(*) as count, array_agg(id ORDER BY id) as product_ids
+      FROM products
+      WHERE upc IS NOT NULL AND upc != ''
+      GROUP BY upc
+      HAVING COUNT(*) > 1
+    `);
+
+    // 2. Find products sharing same ASIN+client+marketplace
+    const dupAsin = await db.query(`
+      SELECT cpl.asin, cpl.client_id, cpl.marketplace_id,
+             COUNT(DISTINCT cpl.product_id) as product_count,
+             array_agg(DISTINCT cpl.product_id ORDER BY cpl.product_id) as product_ids
+      FROM client_product_listings cpl
+      WHERE cpl.asin IS NOT NULL
+      GROUP BY cpl.asin, cpl.client_id, cpl.marketplace_id
+      HAVING COUNT(DISTINCT cpl.product_id) > 1
+    `);
+
+    // 3. Count orphan products
+    const orphans = await db.query(`
+      SELECT COUNT(*) as count
+      FROM products p
+      LEFT JOIN client_product_listings cpl ON p.id = cpl.product_id
+      LEFT JOIN inventory_items i ON p.id = i.product_id
+      WHERE cpl.id IS NULL AND i.id IS NULL
+    `);
+
+    res.json({
+      duplicateUpcGroups: dupUpc.rows,
+      duplicateAsinGroups: dupAsin.rows,
+      orphanProductCount: parseInt(orphans.rows[0].count),
+      summary: {
+        duplicateUpcCount: dupUpc.rows.length,
+        duplicateAsinCount: dupAsin.rows.length,
+        orphanCount: parseInt(orphans.rows[0].count),
+        hasIssues: dupUpc.rows.length > 0 || dupAsin.rows.length > 0 || parseInt(orphans.rows[0].count) > 0
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Cleanup duplicate products
+router.post('/diagnostics/cleanup', authenticate, authorize('admin'), async (req, res, next) => {
+  try {
+    const results = { upcMerges: 0, orphansDeleted: 0, errors: [] };
+
+    // 1. Merge UPC duplicates (keep lowest ID)
+    await db.query(`
+      CREATE TEMP TABLE IF NOT EXISTS product_merge_map AS
+      WITH ranked AS (
+          SELECT id, upc, ROW_NUMBER() OVER (PARTITION BY upc ORDER BY id) as rn
+          FROM products
+          WHERE upc IS NOT NULL AND upc != ''
+            AND upc IN (SELECT upc FROM products WHERE upc IS NOT NULL AND upc != '' GROUP BY upc HAVING COUNT(*) > 1)
+      )
+      SELECT d.id as duplicate_id, c.id as canonical_id
+      FROM ranked d
+      JOIN ranked c ON d.upc = c.upc AND c.rn = 1
+      WHERE d.rn > 1
+    `);
+
+    const mergeCount = await db.query('SELECT COUNT(*) FROM product_merge_map');
+
+    if (parseInt(mergeCount.rows[0].count) > 0) {
+      // Update inventory_items references
+      await db.query(`
+        UPDATE inventory_items SET product_id = m.canonical_id
+        FROM product_merge_map m WHERE product_id = m.duplicate_id
+      `);
+
+      // Update product_photos references
+      await db.query(`
+        UPDATE product_photos SET product_id = m.canonical_id
+        FROM product_merge_map m WHERE product_id = m.duplicate_id
+      `);
+
+      // Delete conflicting listings, then update remaining
+      await db.query(`
+        DELETE FROM client_product_listings cpl
+        USING product_merge_map m
+        WHERE cpl.product_id = m.duplicate_id
+          AND EXISTS (SELECT 1 FROM client_product_listings e
+                      WHERE e.product_id = m.canonical_id
+                        AND e.client_id = cpl.client_id
+                        AND e.marketplace_id = cpl.marketplace_id)
+      `);
+
+      await db.query(`
+        UPDATE client_product_listings SET product_id = m.canonical_id
+        FROM product_merge_map m WHERE product_id = m.duplicate_id
+      `);
+
+      // Delete duplicate products
+      const deleteResult = await db.query(`
+        DELETE FROM products WHERE id IN (SELECT duplicate_id FROM product_merge_map)
+      `);
+      results.upcMerges = deleteResult.rowCount;
+    }
+
+    await db.query('DROP TABLE IF EXISTS product_merge_map');
+
+    // 2. Delete orphan products
+    const orphanResult = await db.query(`
+      DELETE FROM products p
+      WHERE NOT EXISTS (SELECT 1 FROM client_product_listings WHERE product_id = p.id)
+        AND NOT EXISTS (SELECT 1 FROM inventory_items WHERE product_id = p.id)
+    `);
+    results.orphansDeleted = orphanResult.rowCount;
+
+    // Log activity
+    activityService.log(
+      'system',
+      null,
+      'duplicate_cleanup',
+      'admin',
+      req.user.email,
+      results
+    ).catch(err => console.error('Activity log failed:', err));
+
+    res.json({
+      message: 'Cleanup completed',
+      ...results
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // ==================== USER MANAGEMENT ====================
 
 // Get all users
