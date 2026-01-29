@@ -76,7 +76,7 @@ export default function ManagerReturns() {
     hasActiveFilters,
     pageSizeOptions
   } = useDataTable({
-    defaultPageSize: 50,
+    defaultPageSize: 25,
     defaultFilters: {
       status: '',
       urgent: '',

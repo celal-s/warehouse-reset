@@ -17,11 +17,11 @@ export default function Layout({ children, title, navItems = [] }) {
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-4">
+          <div className="grid grid-cols-[minmax(280px,_1fr)_auto_minmax(60px,_1fr)] items-center gap-4">
             {/* Left: Back Button + Title */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 min-w-0">
               <BackButton />
-              <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
+              <h1 className="text-xl font-semibold text-gray-900 truncate" title={title}>{title}</h1>
             </div>
 
             {/* Center: Navigation */}
@@ -32,7 +32,7 @@ export default function Layout({ children, title, navItems = [] }) {
                     <Link
                       key={item.to}
                       to={item.to}
-                      className={`px-3 py-2 rounded-md text-sm font-medium ${
+                      className={`px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap ${
                         location.pathname === item.to
                           ? 'bg-blue-100 text-blue-700'
                           : 'text-gray-600 hover:bg-gray-100'

@@ -31,7 +31,7 @@ export default function ManagerProducts() {
     setPageSize,
     pageSizeOptions,
   } = useDataTable({
-    defaultPageSize: 20,
+    defaultPageSize: 25,
     syncWithUrl: true,
   })
 

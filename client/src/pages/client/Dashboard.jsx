@@ -119,14 +119,14 @@ export default function ClientDashboard() {
       </div>
 
       {/* Decision Breakdown */}
-      {dashboard?.decision_breakdown && Object.keys(dashboard.decision_breakdown).length > 0 && (
+      {dashboard?.decision_breakdown && dashboard.decision_breakdown.length > 0 && (
         <div className="bg-white rounded-lg shadow p-6 mb-8">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Decisions Made</h2>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            {Object.entries(dashboard.decision_breakdown).map(([decision, count]) => (
-              <div key={decision} className="text-center p-4 bg-gray-50 rounded-lg">
+            {dashboard.decision_breakdown.map(({ client_decision, count }) => (
+              <div key={client_decision} className="text-center p-4 bg-gray-50 rounded-lg">
                 <p className="text-2xl font-bold text-gray-900">{count}</p>
-                <p className="text-sm text-gray-500 capitalize">{decision.replace(/_/g, ' ')}</p>
+                <p className="text-sm text-gray-500 capitalize">{client_decision.replace(/_/g, ' ')}</p>
               </div>
             ))}
           </div>
@@ -156,7 +156,7 @@ export default function ClientDashboard() {
             View All Inventory
           </Link>
           <Link
-            to={`/client/${clientCode}/inventory?status=awaiting_decision`}
+            to={`/client/${clientCode}/inventory?filter_status=awaiting_decision`}
             className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

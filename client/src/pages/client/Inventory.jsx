@@ -1,67 +1,49 @@
-import { useState, useEffect, useMemo } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { Link, useParams } from 'react-router-dom'
 import Layout from '../../components/Layout'
-import { DataTable, DataTableToolbar } from '../../components/DataTable'
-import { Button, Alert, Badge, StatusBadge } from '../../components/ui'
+import { DataTable, DataTableToolbar, useDataTable } from '../../components/DataTable'
+import { Button, Alert, StatusBadge } from '../../components/ui'
 import { getClientInventory } from '../../api'
 
 export default function ClientInventory() {
   const { clientCode } = useParams()
-  const [searchParams, setSearchParams] = useSearchParams()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // Filter state from URL params
-  const statusFilter = searchParams.get('status') || ''
-  const conditionFilter = searchParams.get('condition') || ''
+  // Use the DataTable hook for state management with URL sync
+  const {
+    filters,
+    setFilter,
+    clearFilters,
+    hasActiveFilters
+  } = useDataTable({
+    defaultFilters: {
+      status: '',
+      condition: ''
+    },
+    syncWithUrl: true
+  })
 
-  useEffect(() => {
-    loadInventory()
-  }, [clientCode, statusFilter, conditionFilter])
-
-  const loadInventory = async () => {
+  const loadInventory = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const filters = {}
-      if (statusFilter) filters.status = statusFilter
-      if (conditionFilter) filters.condition = conditionFilter
-      const data = await getClientInventory(clientCode, filters)
+      const apiFilters = {}
+      if (filters.status) apiFilters.status = filters.status
+      if (filters.condition) apiFilters.condition = filters.condition
+      const data = await getClientInventory(clientCode, apiFilters)
       setItems(data)
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
-  }
+  }, [clientCode, filters])
 
-  const updateFilter = (key, value) => {
-    const newParams = new URLSearchParams(searchParams)
-    if (value) {
-      newParams.set(key, value)
-    } else {
-      newParams.delete(key)
-    }
-    setSearchParams(newParams)
-  }
-
-  // Decision badge helper (decisions not in StatusBadge config)
-  const getDecisionBadge = (decision) => {
-    if (!decision) return null
-    const styles = {
-      ship_to_fba: 'purple',
-      return: 'orange',
-      dispose: 'red',
-      keep_in_stock: 'blue',
-      other: 'gray'
-    }
-    return (
-      <Badge variant={styles[decision] || 'gray'}>
-        {decision.replace(/_/g, ' ')}
-      </Badge>
-    )
-  }
+  useEffect(() => {
+    loadInventory()
+  }, [loadInventory])
 
   // Define columns for DataTable
   const columns = useMemo(() => [
@@ -126,7 +108,11 @@ export default function ClientInventory() {
       id: 'decision',
       header: 'Decision',
       accessorKey: 'client_decision',
-      cell: ({ getValue }) => getDecisionBadge(getValue()),
+      cell: ({ getValue }) => {
+        const decision = getValue()
+        if (!decision) return null
+        return <StatusBadge status={decision} />
+      },
       enableSorting: false,
     },
     {
@@ -145,7 +131,7 @@ export default function ClientInventory() {
   ], [clientCode])
 
   // Filter configuration for toolbar
-  const filters = [
+  const filterConfig = [
     {
       id: 'status',
       label: 'Status',
@@ -155,8 +141,8 @@ export default function ClientInventory() {
         { value: 'decision_made', label: 'Decision Made' },
         { value: 'processed', label: 'Processed' }
       ],
-      value: statusFilter,
-      onChange: (value) => updateFilter('status', value)
+      value: filters.status,
+      onChange: (value) => setFilter('status', value)
     },
     {
       id: 'condition',
@@ -166,8 +152,8 @@ export default function ClientInventory() {
         { value: 'sellable', label: 'Sellable' },
         { value: 'damaged', label: 'Damaged' }
       ],
-      value: conditionFilter,
-      onChange: (value) => updateFilter('condition', value)
+      value: filters.condition,
+      onChange: (value) => setFilter('condition', value)
     }
   ]
 
@@ -185,7 +171,12 @@ export default function ClientInventory() {
       </svg>
     ),
     title: 'No items found',
-    description: statusFilter || conditionFilter ? 'Try adjusting your filters.' : 'No inventory items yet.'
+    description: hasActiveFilters ? 'Try adjusting your filters.' : 'No inventory items yet.',
+    action: hasActiveFilters ? (
+      <Button variant="ghost" onClick={clearFilters}>
+        Clear filters
+      </Button>
+    ) : undefined
   }
 
   return (
@@ -204,7 +195,7 @@ export default function ClientInventory() {
         emptyState={emptyState}
         toolbar={
           <DataTableToolbar
-            filters={filters}
+            filters={filterConfig}
             actions={
               <Button variant="secondary" onClick={loadInventory}>
                 Refresh

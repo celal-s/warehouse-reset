@@ -155,7 +155,7 @@ export default function DataTable({
                       <th
                         key={header.id}
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                         style={{
                           width: header.getSize() !== 150 ? header.getSize() : undefined,
                         }}
@@ -178,7 +178,7 @@ export default function DataTable({
                     onClick={onRowClick ? () => onRowClick(row.original) : undefined}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-6 py-4 whitespace-nowrap">
+                      <td key={cell.id} className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}
@@ -191,7 +191,7 @@ export default function DataTable({
 
           {/* Pagination */}
           {onPageChange && (
-            <div className="px-6 py-4 border-t">
+            <div className="px-3 sm:px-6 py-2 sm:py-4 border-t">
               <DataTablePagination
                 page={page}
                 pageSize={pageSize}

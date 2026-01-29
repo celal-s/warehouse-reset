@@ -58,12 +58,19 @@ const statusConfig = {
   decision_made: { variant: 'blue', label: 'Decision Made' },
   processed: { variant: 'green', label: 'Processed' },
 
+  // Decision statuses
+  ship_to_fba: { variant: 'blue', label: 'Ship to FBA' },
+  return_to_client: { variant: 'purple', label: 'Return' },
+  dispose: { variant: 'red', label: 'Dispose' },
+  keep_in_stock: { variant: 'green', label: 'Keep in Stock' },
+
   // Conditions
   sellable: { variant: 'green', label: 'Sellable' },
   damaged: { variant: 'red', label: 'Damaged' },
 
   // User roles
   admin: { variant: 'purple', label: 'Admin' },
+  manager: { variant: 'orange', label: 'Manager' },
   employee: { variant: 'blue', label: 'Employee' },
   client: { variant: 'green', label: 'Client' },
 
