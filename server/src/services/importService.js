@@ -68,15 +68,32 @@ const importService = {
 
           if (existingProduct.rows.length > 0) {
             productId = existingProduct.rows[0].id;
-            // Update title if needed
             await db.query(
-              'UPDATE products SET title = $1 WHERE id = $2',
+              'UPDATE products SET title = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
               [title, productId]
             );
           }
         }
 
-        // Create product if doesn't exist
+        // FALLBACK: Check by ASIN+client+marketplace when UPC not found
+        if (!productId && asin) {
+          const existingListing = await db.query(`
+            SELECT p.id FROM products p
+            JOIN client_product_listings cpl ON p.id = cpl.product_id
+            WHERE cpl.asin = $1 AND cpl.client_id = $2 AND cpl.marketplace_id = $3
+          `, [asin, clientId, marketplaceId]);
+
+          if (existingListing.rows.length > 0) {
+            productId = existingListing.rows[0].id;
+            // Update UPC if we now have it
+            await db.query(
+              'UPDATE products SET upc = COALESCE(upc, $1), title = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
+              [upc, title, productId]
+            );
+          }
+        }
+
+        // Create product only if truly doesn't exist
         if (!productId) {
           const newProduct = await db.query(
             'INSERT INTO products (upc, title) VALUES ($1, $2) RETURNING id',

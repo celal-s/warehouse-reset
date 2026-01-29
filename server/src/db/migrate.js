@@ -228,6 +228,30 @@ async function runMigrations() {
       CREATE INDEX IF NOT EXISTS idx_inventory_history_item ON inventory_history(inventory_item_id);
     `);
 
+    // Prevent future UPC duplicates (partial index - only non-null/non-empty UPCs)
+    console.log('Adding unique constraint on UPC...');
+    try {
+      await pool.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_products_upc_unique
+        ON products (upc)
+        WHERE upc IS NOT NULL AND upc != ''
+      `);
+    } catch (err) {
+      if (err.message.includes('duplicate key')) {
+        console.warn('UPC constraint skipped - duplicates exist. Run cleanup first.');
+      } else {
+        console.warn('UPC constraint warning:', err.message);
+      }
+    }
+
+    // Optimize ASIN+client+marketplace lookups for deduplication
+    console.log('Adding composite index for ASIN+client+marketplace...');
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_cpl_asin_client_marketplace
+      ON client_product_listings (asin, client_id, marketplace_id)
+      WHERE asin IS NOT NULL
+    `);
+
     console.log('All migrations completed successfully');
   } catch (error) {
     console.error('Migration failed:', error);
