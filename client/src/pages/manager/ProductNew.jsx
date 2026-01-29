@@ -37,7 +37,7 @@ export default function ManagerProductNew() {
         title: title.trim(),
         upc: upc.trim() || null
       })
-      navigate(`/admin/products/${product.id}`)
+      navigate(`/manager/products/${product.id}`)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -90,7 +90,7 @@ export default function ManagerProductNew() {
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => navigate('/admin/products')}
+                onClick={() => navigate('/manager/products')}
                 className="flex-1 py-2 px-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Cancel

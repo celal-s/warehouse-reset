@@ -25,6 +25,7 @@ import ManagerReturns from './pages/manager/Returns'
 import ManagerReturnDetail from './pages/manager/ReturnDetail'
 import ManagerReturnImport from './pages/manager/ReturnImport'
 import ManagerUnmatchedReturns from './pages/manager/UnmatchedReturns'
+import ManagerInventoryDetail from './pages/manager/InventoryDetail'
 
 // System Admin Pages (developer only)
 import AdminDashboard from './pages/admin/Dashboard'
@@ -149,6 +150,11 @@ function App() {
           <Route path="/manager/returns/:id" element={
             <ProtectedRoute allowedRoles={['manager', 'admin']}>
               <ManagerReturnDetail />
+            </ProtectedRoute>
+          } />
+          <Route path="/manager/inventory/:id" element={
+            <ProtectedRoute allowedRoles={['manager', 'admin', 'employee']}>
+              <ManagerInventoryDetail />
             </ProtectedRoute>
           } />
 

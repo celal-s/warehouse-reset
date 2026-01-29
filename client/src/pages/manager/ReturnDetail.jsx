@@ -260,7 +260,7 @@ export default function ManagerReturnDetail() {
                 {returnItem.product_id && (
                   <div>
                     <Link
-                      to={`/admin/products/${returnItem.product_id}`}
+                      to={`/manager/products/${returnItem.product_id}`}
                       className="text-sm text-blue-600 hover:text-blue-700"
                     >
                       View Product Details

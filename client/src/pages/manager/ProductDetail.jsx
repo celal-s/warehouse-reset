@@ -402,7 +402,7 @@ export default function ManagerProductDetail() {
                               <td className="px-3 py-2 text-sm text-gray-600">{formatDecision(item.client_decision)}</td>
                               <td className="px-3 py-2">
                                 <Link
-                                  to={`/admin/inventory/${item.id}`}
+                                  to={`/manager/inventory/${item.id}`}
                                   className="text-blue-600 hover:text-blue-700 text-sm"
                                 >
                                   View
