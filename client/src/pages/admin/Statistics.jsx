@@ -9,8 +9,7 @@ const adminNavItems = [
   { to: '/admin/statistics', label: 'Statistics' },
   { to: '/admin/schema', label: 'Schema' },
   { to: '/admin/db-browser', label: 'DB Browser' },
-  { to: '/admin/navigation', label: 'Routes' },
-  { to: '/admin/api-docs', label: 'API Docs' }
+  { to: '/admin/navigation', label: 'Routes & API' }
 ]
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6']

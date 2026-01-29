@@ -188,12 +188,7 @@ const frontendRouteConfig = [
       {
         path: '/admin/navigation',
         component: 'AdminNavigation',
-        description: 'Route map'
-      },
-      {
-        path: '/admin/api-docs',
-        component: 'AdminApiDocs',
-        description: 'API documentation'
+        description: 'Routes & API Docs'
       }
     ]
   }

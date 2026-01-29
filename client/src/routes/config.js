@@ -38,7 +38,6 @@ import AdminDbBrowser from '../pages/admin/DbBrowser'
 import AdminDbBrowserTable from '../pages/admin/DbBrowserTable'
 import AdminDbBrowserRecord from '../pages/admin/DbBrowserRecord'
 import AdminNavigation from '../pages/admin/Navigation'
-import AdminApiDocs from '../pages/admin/ApiDocs'
 
 /**
  * Route configuration organized by section
@@ -231,12 +230,7 @@ export const routeConfig = [
       {
         path: '/admin/navigation',
         component: AdminNavigation,
-        description: 'Route map'
-      },
-      {
-        path: '/admin/api-docs',
-        component: AdminApiDocs,
-        description: 'API documentation'
+        description: 'Routes & API Docs'
       }
     ]
   }

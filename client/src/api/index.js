@@ -202,9 +202,7 @@ export const getAdminServerStatus = () => request('/admin/server-status');
 
 export const getAdminStatistics = (period = '7d') => request(`/admin/statistics?period=${period}`);
 
-export const getAdminNavigation = () => request('/admin/navigation');
-
-export const getAdminApiDocs = () => request('/admin/api-docs');
+export const getAdminRoutes = () => request('/admin/routes');
 
 export const getAdminSchema = () => request('/admin/schema');
 

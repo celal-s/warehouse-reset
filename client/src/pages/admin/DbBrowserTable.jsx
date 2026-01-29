@@ -15,8 +15,7 @@ const adminNavItems = [
   { to: '/admin/statistics', label: 'Statistics' },
   { to: '/admin/schema', label: 'Schema' },
   { to: '/admin/db-browser', label: 'DB Browser' },
-  { to: '/admin/navigation', label: 'Routes' },
-  { to: '/admin/api-docs', label: 'API Docs' }
+  { to: '/admin/navigation', label: 'Routes & API' }
 ]
 
 export default function DbBrowserTable() {

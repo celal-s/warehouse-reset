@@ -184,10 +184,10 @@ router.get('/statistics', authenticate, authorize('admin'), async (req, res, nex
   }
 });
 
-// ==================== NAVIGATION ====================
+// ==================== ROUTES & API DOCS ====================
 
-// Get complete route map (dynamically generated)
-router.get('/navigation', authenticate, authorize('admin'), async (req, res, next) => {
+// Get complete route map and API documentation (unified endpoint)
+router.get('/routes', authenticate, authorize('admin'), async (req, res, next) => {
   try {
     // Get frontend routes from config
     const frontendRoutes = getFrontendRoutes();
@@ -195,49 +195,36 @@ router.get('/navigation', authenticate, authorize('admin'), async (req, res, nex
     // Introspect API routes from Express app
     const extractedRoutes = routeIntrospector.extractRoutes(req.app);
     const apiSections = routeIntrospector.formatForNavigation(extractedRoutes);
+    const apiEndpoints = routeIntrospector.formatForApiDocs(extractedRoutes);
 
     res.json({
-      routes: frontendRoutes,
-      api: apiSections
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// ==================== API DOCS ====================
-
-// Get API documentation (dynamically generated)
-router.get('/api-docs', authenticate, authorize('admin'), async (req, res, next) => {
-  try {
-    // Introspect API routes from Express app
-    const extractedRoutes = routeIntrospector.extractRoutes(req.app);
-    const endpoints = routeIntrospector.formatForApiDocs(extractedRoutes);
-
-    res.json({
-      title: 'Warehouse Reset API',
-      version: '1.0.0',
-      description: 'API documentation for the Warehouse Reset system (auto-generated from route introspection)',
-      baseUrl: '/api',
-      authentication: {
-        type: 'Bearer Token',
-        description: 'Include Authorization header: Bearer <token>',
-        endpoints: {
-          login: {
-            path: '/auth/login',
-            method: 'POST',
-            body: { email: 'string', password: 'string' },
-            response: { token: 'string', user: 'object' }
+      frontend: frontendRoutes,
+      api: apiSections,
+      apiDetails: {
+        title: 'Warehouse Reset API',
+        version: '1.0.0',
+        description: 'API documentation for the Warehouse Reset system (auto-generated from route introspection)',
+        baseUrl: '/api',
+        authentication: {
+          type: 'Bearer Token',
+          description: 'Include Authorization header: Bearer <token>',
+          endpoints: {
+            login: {
+              path: '/auth/login',
+              method: 'POST',
+              body: { email: 'string', password: 'string' },
+              response: { token: 'string', user: 'object' }
+            }
           }
-        }
-      },
-      roles: {
-        admin: 'System administrator - full access to all features including system tools',
-        manager: 'Warehouse manager - access to warehouse operations, users, imports',
-        employee: 'Warehouse worker - scanning, sorting, returns processing',
-        client: 'External client - view own inventory and products only'
-      },
-      endpoints
+        },
+        roles: {
+          admin: 'System administrator - full access to all features including system tools',
+          manager: 'Warehouse manager - access to warehouse operations, users, imports',
+          employee: 'Warehouse worker - scanning, sorting, returns processing',
+          client: 'External client - view own inventory and products only'
+        },
+        endpoints: apiEndpoints
+      }
     });
   } catch (error) {
     next(error);

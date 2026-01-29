@@ -7,8 +7,7 @@ const adminNavItems = [
   { to: '/admin/statistics', label: 'Statistics' },
   { to: '/admin/schema', label: 'Schema' },
   { to: '/admin/db-browser', label: 'DB Browser' },
-  { to: '/admin/navigation', label: 'Routes' },
-  { to: '/admin/api-docs', label: 'API Docs' }
+  { to: '/admin/navigation', label: 'Routes & API' }
 ]
 
 export default function AdminDashboard() {
@@ -102,25 +101,8 @@ export default function AdminDashboard() {
                 </svg>
               </div>
               <div>
-                <h3 className="font-medium text-gray-900">Route Map</h3>
-                <p className="text-sm text-gray-500">Frontend and API routes</p>
-              </div>
-            </div>
-          </Link>
-
-          <Link
-            to="/admin/api-docs"
-            className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow border-2 border-transparent hover:border-pink-500"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-900">API Documentation</h3>
-                <p className="text-sm text-gray-500">Endpoint reference</p>
+                <h3 className="font-medium text-gray-900">Routes & API</h3>
+                <p className="text-sm text-gray-500">Frontend routes and API documentation</p>
               </div>
             </div>
           </Link>
