@@ -136,11 +136,11 @@ export function useDataTable({
   const setFilter = useCallback((key, value) => {
     setFiltersState((prev) => {
       const newFilters = { ...prev, [key]: value }
-      updateUrlParams({ filters: newFilters })
+      // Combine filter and page updates into single URL update to avoid race condition
+      setPageState(1)
+      updateUrlParams({ filters: newFilters, page: 1 })
       return newFilters
     })
-    setPageState(1) // Reset to first page on filter change
-    updateUrlParams({ page: 1 })
   }, [updateUrlParams])
 
   const clearFilters = useCallback(() => {

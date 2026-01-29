@@ -16,6 +16,8 @@ export default function Login() {
     switch (user.role) {
       case 'admin':
         return '/admin'
+      case 'manager':
+        return '/manager'
       case 'employee':
         return '/employee/scan'
       case 'client':
