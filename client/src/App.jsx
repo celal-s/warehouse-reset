@@ -20,6 +20,7 @@ import AdminProductDetail from './pages/admin/ProductDetail'
 import AdminProductNew from './pages/admin/ProductNew'
 import AdminUsers from './pages/admin/Users'
 import AdminReturns from './pages/admin/Returns'
+import AdminReturnDetail from './pages/admin/ReturnDetail'
 import AdminReturnImport from './pages/admin/ReturnImport'
 import AdminUnmatchedReturns from './pages/admin/UnmatchedReturns'
 
@@ -130,6 +131,11 @@ function App() {
           <Route path="/admin/returns/unmatched" element={
             <ProtectedRoute allowedRoles={['admin']}>
               <AdminUnmatchedReturns />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/returns/:id" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminReturnDetail />
             </ProtectedRoute>
           } />
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import Layout from '../../components/Layout'
-import { getPendingReturns, shipReturn } from '../../api'
+import { getReturns, shipReturn } from '../../api'
 
 const employeeNavItems = [
   { to: '/employee/scan', label: 'Scan' },
@@ -83,6 +83,7 @@ export default function EmployeeReturns() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
+  const [statusFilter, setStatusFilter] = useState('pending')
 
   // Ship modal state
   const [shipModalOpen, setShipModalOpen] = useState(false)
@@ -92,15 +93,17 @@ export default function EmployeeReturns() {
 
   useEffect(() => {
     loadReturns()
-  }, [])
+  }, [statusFilter])
 
   const loadReturns = async () => {
     setLoading(true)
     setError(null)
 
     try {
-      const data = await getPendingReturns()
-      setReturns(data)
+      const filters = {}
+      if (statusFilter) filters.status = statusFilter
+      const data = await getReturns(filters)
+      setReturns(data.returns || data)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -152,14 +155,33 @@ export default function EmployeeReturns() {
   return (
     <Layout title="Returns" backLink="/" navItems={employeeNavItems}>
       {/* Header */}
-      <div className="mb-6 flex justify-between items-center">
-        <h2 className="text-lg font-medium text-gray-900">Pending Returns</h2>
-        <button
-          onClick={loadReturns}
-          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-        >
-          Refresh
-        </button>
+      <div className="mb-6 flex flex-wrap justify-between items-center gap-4">
+        <div className="flex items-center gap-4">
+          <h2 className="text-lg font-medium text-gray-900">Returns</h2>
+          <span className="text-sm text-gray-500">
+            Showing {returns.length} returns
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Status Filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="matched">Matched</option>
+            <option value="shipped">Shipped</option>
+            <option value="completed">Completed</option>
+          </select>
+          <button
+            onClick={loadReturns}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Success Message */}
@@ -278,7 +300,8 @@ export default function EmployeeReturns() {
                         <div className="flex items-center gap-2">
                           {item.label_url && (
                             <a
-                              href={item.label_url}
+                              href={item.label_url.includes('?') ? `${item.label_url}&fl_attachment` : `${item.label_url}?fl_attachment`}
+                              download
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"

@@ -105,6 +105,11 @@ const returnLabelParser = {
       // Try to extract return deadline date
       let returnByDate = null;
       const datePatterns = [
+        // Dates at the beginning of the document (no keyword required)
+        /^\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/m,           // MM/DD/YYYY at start of line
+        /^\s*(\d{4}-\d{2}-\d{2})/m,                            // ISO format at start of line
+        /^\s*([A-Za-z]+\s+\d{1,2},?\s+\d{4})/m,               // Month name at start of line
+        // Original patterns with keywords
         /return\s*(?:by|before|deadline)[:\s]*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i,
         /must\s*return\s*(?:by)?[:\s]*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i,
         /deadline[:\s]*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i,
