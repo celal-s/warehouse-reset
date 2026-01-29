@@ -9,6 +9,7 @@ const clientRoutes = require('./routes/clients');
 const adminRoutes = require('./routes/admin');
 const uploadRoutes = require('./routes/upload');
 const authRoutes = require('./routes/auth');
+const returnsRoutes = require('./routes/returns');
 const errorHandler = require('./middleware/errorHandler');
 const db = require('./db');
 
@@ -31,6 +32,7 @@ app.use('/api/clients', clientRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/returns', returnsRoutes);
 
 // Error handler
 app.use(errorHandler);
@@ -125,6 +127,47 @@ const runMigrations = async () => {
       );
     `);
     console.log('  - inventory_history table: verified');
+
+    // Create returns table if it doesn't exist
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS returns (
+        id SERIAL PRIMARY KEY,
+        product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
+        inventory_item_id INTEGER REFERENCES inventory_items(id) ON DELETE SET NULL,
+        client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+        quantity INTEGER NOT NULL DEFAULT 1,
+        return_type VARCHAR(20) NOT NULL CHECK (return_type IN ('post_receipt', 'pre_receipt')),
+        status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'matched', 'shipped', 'completed', 'cancelled', 'unmatched')),
+        label_url VARCHAR(500),
+        label_uploaded_at TIMESTAMP,
+        carrier VARCHAR(50),
+        tracking_number VARCHAR(100),
+        return_by_date DATE,
+        source_identifier VARCHAR(255),
+        parsed_product_name TEXT,
+        match_confidence DECIMAL(3,2),
+        client_notes TEXT,
+        warehouse_notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_by INTEGER REFERENCES users(id),
+        shipped_at TIMESTAMP,
+        shipped_by INTEGER REFERENCES users(id),
+        completed_at TIMESTAMP,
+        import_batch_id VARCHAR(50),
+        original_filename VARCHAR(500)
+      );
+    `);
+    console.log('  - returns table: verified');
+
+    // Create indexes for returns table
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_returns_status ON returns(status);
+      CREATE INDEX IF NOT EXISTS idx_returns_product_id ON returns(product_id);
+      CREATE INDEX IF NOT EXISTS idx_returns_client_id ON returns(client_id);
+      CREATE INDEX IF NOT EXISTS idx_returns_return_by_date ON returns(return_by_date);
+      CREATE INDEX IF NOT EXISTS idx_returns_inventory_item_id ON returns(inventory_item_id);
+    `);
+    console.log('  - returns table: indexes verified');
 
     console.log('Auto-migrations completed successfully');
   } catch (error) {

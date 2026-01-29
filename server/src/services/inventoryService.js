@@ -1,4 +1,5 @@
 const db = require('../db');
+const returnsService = require('./returnsService');
 
 const inventoryService = {
   // Receive inventory - creates inventory item and logs history
@@ -27,6 +28,21 @@ const inventoryService = {
         )
         VALUES ($1, 'received', $2, $3, $4)
       `, [inventoryItem.id, quantity || 1, userId, notes || 'Initial receipt']);
+
+      // Check for matching pre-receipt returns
+      const matchingReturns = await returnsService.findMatchingReturns(productId);
+      if (matchingReturns && matchingReturns.length > 0) {
+        // Match the first pending return to this inventory item
+        const returnToMatch = matchingReturns[0];
+        await client.query(`
+          UPDATE returns
+          SET inventory_item_id = $1, client_id = $2, status = 'matched'
+          WHERE id = $3
+        `, [inventoryItem.id, clientId, returnToMatch.id]);
+
+        // Add to the returned inventory item so caller knows a return was matched
+        inventoryItem.matched_return_id = returnToMatch.id;
+      }
 
       await client.query('COMMIT');
       return inventoryItem;

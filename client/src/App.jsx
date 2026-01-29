@@ -6,6 +6,7 @@ import Home from './pages/Home'
 import Login from './pages/Login'
 import EmployeeScan from './pages/employee/Scan'
 import EmployeeSort from './pages/employee/Sort'
+import EmployeeReturns from './pages/employee/Returns'
 import ClientDashboard from './pages/client/Dashboard'
 import ClientInventory from './pages/client/Inventory'
 import ClientItemDetail from './pages/client/ItemDetail'
@@ -18,6 +19,9 @@ import AdminProducts from './pages/admin/Products'
 import AdminProductDetail from './pages/admin/ProductDetail'
 import AdminProductNew from './pages/admin/ProductNew'
 import AdminUsers from './pages/admin/Users'
+import AdminReturns from './pages/admin/Returns'
+import AdminReturnImport from './pages/admin/ReturnImport'
+import AdminUnmatchedReturns from './pages/admin/UnmatchedReturns'
 
 // Components
 import ProtectedRoute from './components/ProtectedRoute'
@@ -42,6 +46,11 @@ function App() {
           <Route path="/employee/sort" element={
             <ProtectedRoute allowedRoles={['admin', 'employee']}>
               <EmployeeSort />
+            </ProtectedRoute>
+          } />
+          <Route path="/employee/returns" element={
+            <ProtectedRoute allowedRoles={['admin', 'employee']}>
+              <EmployeeReturns />
             </ProtectedRoute>
           } />
 
@@ -106,6 +115,21 @@ function App() {
           <Route path="/admin/users" element={
             <ProtectedRoute allowedRoles={['admin']}>
               <AdminUsers />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/returns" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminReturns />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/returns/import" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminReturnImport />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/returns/unmatched" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminUnmatchedReturns />
             </ProtectedRoute>
           } />
 

@@ -222,3 +222,50 @@ export const signup = (data) => request('/auth/signup', {
 });
 
 export const getMe = () => request('/auth/me');
+
+// Returns
+export const getReturns = (filters = {}) => {
+  const params = new URLSearchParams(filters);
+  return request(`/returns?${params}`);
+};
+
+export const getReturn = (id) => request(`/returns/${id}`);
+
+export const getPendingReturns = () => request('/returns/pending');
+
+export const getUnmatchedReturns = () => request('/returns/unmatched');
+
+export const createReturn = (data) => request('/returns', {
+  method: 'POST',
+  body: JSON.stringify(data)
+});
+
+export const updateReturn = (id, data) => request(`/returns/${id}`, {
+  method: 'PATCH',
+  body: JSON.stringify(data)
+});
+
+export const shipReturn = (id, data) => request(`/returns/${id}/ship`, {
+  method: 'POST',
+  body: JSON.stringify(data)
+});
+
+export const completeReturn = (id) => request(`/returns/${id}/complete`, {
+  method: 'POST'
+});
+
+export const assignReturnProduct = (id, productId) => request(`/returns/${id}/assign-product`, {
+  method: 'POST',
+  body: JSON.stringify({ product_id: productId })
+});
+
+export const importReturnBacklog = (files) => {
+  const formData = new FormData();
+  files.forEach(file => {
+    formData.append('files', file);
+  });
+  return request('/returns/import-backlog', {
+    method: 'POST',
+    body: formData
+  });
+};
