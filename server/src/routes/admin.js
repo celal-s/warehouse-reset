@@ -39,9 +39,22 @@ router.get('/dashboard', authenticate, authorize('admin'), async (req, res, next
     const productCount = await db.query('SELECT COUNT(*) as count FROM products');
 
     res.json({
-      ...stats.rows[0],
-      product_count: productCount.rows[0].count,
-      by_client: byClient.rows
+      totalItems: parseInt(stats.rows[0].total_items) || 0,
+      pendingDecisions: parseInt(stats.rows[0].pending_decisions) || 0,
+      decided: parseInt(stats.rows[0].decided) || 0,
+      processed: parseInt(stats.rows[0].processed) || 0,
+      sellableItems: parseInt(stats.rows[0].sellable_items) || 0,
+      damagedItems: parseInt(stats.rows[0].damaged_items) || 0,
+      totalQuantity: parseInt(stats.rows[0].total_quantity) || 0,
+      totalProducts: parseInt(productCount.rows[0].count) || 0,
+      activeClients: byClient.rows.filter(c => parseInt(c.item_count) > 0).length,
+      itemsByClient: byClient.rows.map(c => ({
+        clientCode: c.client_code,
+        clientName: c.name,
+        totalItems: parseInt(c.item_count) || 0,
+        awaitingDecision: parseInt(c.pending) || 0,
+        processed: (parseInt(c.item_count) || 0) - (parseInt(c.pending) || 0)
+      }))
     });
   } catch (error) {
     next(error);
@@ -60,7 +73,7 @@ router.get('/activity', authenticate, authorize('admin'), async (req, res, next)
 });
 
 // Storage locations CRUD
-router.get('/locations', authenticate, authorize('admin'), async (req, res, next) => {
+router.get('/locations', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
   try {
     const result = await db.query(`
       SELECT

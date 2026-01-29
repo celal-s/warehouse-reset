@@ -277,6 +277,71 @@ router.post('/:id/photos', authenticate, authorize('admin', 'employee'), async (
   }
 });
 
+// Get inventory items for a product (across all clients)
+router.get('/:id/inventory', authenticate, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const result = await db.query(`
+      SELECT
+        i.id,
+        i.quantity,
+        i.condition,
+        i.status,
+        i.client_decision,
+        i.decision_notes,
+        COALESCE(i.received_at, i.created_at) as received_at,
+        COALESCE(i.condition_notes, '') as condition_notes,
+        COALESCE(i.lot_number, '') as lot_number,
+        i.created_at,
+        i.updated_at,
+        c.id as client_id,
+        c.client_code,
+        c.name as client_name,
+        sl.id as location_id,
+        sl.type as location_type,
+        sl.label as location_label
+      FROM inventory_items i
+      JOIN clients c ON i.client_id = c.id
+      LEFT JOIN storage_locations sl ON i.storage_location_id = sl.id
+      WHERE i.product_id = $1
+      ORDER BY i.created_at DESC
+    `, [id]);
+
+    res.json(result.rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get activity history for a product
+router.get('/:id/history', authenticate, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const result = await db.query(`
+      SELECT
+        al.id,
+        al.action,
+        al.actor_type,
+        al.actor_name,
+        al.metadata,
+        al.created_at
+      FROM activity_log al
+      WHERE (al.entity_type = 'product' AND al.entity_id = $1)
+         OR (al.entity_type = 'inventory_item' AND al.entity_id IN (
+           SELECT i.id FROM inventory_items i WHERE i.product_id = $1
+         ))
+      ORDER BY al.created_at DESC
+      LIMIT 50
+    `, [id]);
+
+    res.json(result.rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Check if product has photos
 router.get('/:id/has-photos', authenticate, async (req, res, next) => {
   try {

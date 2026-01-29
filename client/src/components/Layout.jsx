@@ -1,7 +1,15 @@
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 export default function Layout({ children, title, backLink, navItems = [] }) {
   const location = useLocation()
+  const navigate = useNavigate()
+  const { logout, isAuthenticated } = useAuth()
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -38,6 +46,14 @@ export default function Layout({ children, title, backLink, navItems = [] }) {
                   </Link>
                 ))}
               </nav>
+            )}
+            {isAuthenticated && (
+              <button
+                onClick={handleLogout}
+                className="ml-4 px-3 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md"
+              >
+                Sign Out
+              </button>
             )}
           </div>
         </div>

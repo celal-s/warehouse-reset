@@ -50,6 +50,10 @@ export const checkProductHasPhotos = (productId) => request(`/products/${product
 
 export const getProductDetail = (id) => request(`/products/${id}/detail`);
 
+export const getProductInventory = (id) => request(`/products/${id}/inventory`);
+
+export const getProductHistory = (id) => request(`/products/${id}/history`);
+
 export const updateProductObservations = (id, data) =>
   request(`/products/${id}/observations`, {
     method: 'PATCH',
