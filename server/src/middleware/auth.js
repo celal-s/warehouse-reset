@@ -35,7 +35,7 @@ const authenticate = async (req, res, next) => {
  * @param {...string} roles - Allowed roles
  */
 const authorize = (...roles) => {
-  return (req, res, next) => {
+  const middleware = (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
@@ -46,6 +46,9 @@ const authorize = (...roles) => {
 
     next();
   };
+  // Expose roles for introspection
+  middleware._roles = roles;
+  return middleware;
 };
 
 module.exports = {

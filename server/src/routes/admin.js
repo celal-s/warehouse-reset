@@ -3,6 +3,8 @@ const router = express.Router();
 const db = require('../db');
 const { authenticate, authorize } = require('../middleware/auth');
 const os = require('os');
+const routeIntrospector = require('../utils/routeIntrospector');
+const { getNavigationFormat: getFrontendRoutes } = require('../config/frontendRoutes');
 
 // Only admin role can access these routes (system admin - developer only)
 
@@ -184,121 +186,19 @@ router.get('/statistics', authenticate, authorize('admin'), async (req, res, nex
 
 // ==================== NAVIGATION ====================
 
-// Get complete route map
+// Get complete route map (dynamically generated)
 router.get('/navigation', authenticate, authorize('admin'), async (req, res, next) => {
   try {
+    // Get frontend routes from config
+    const frontendRoutes = getFrontendRoutes();
+
+    // Introspect API routes from Express app
+    const extractedRoutes = routeIntrospector.extractRoutes(req.app);
+    const apiSections = routeIntrospector.formatForNavigation(extractedRoutes);
+
     res.json({
-      routes: [
-        {
-          section: 'Public',
-          routes: [
-            { path: '/', method: 'GET', description: 'Home page' },
-            { path: '/login', method: 'GET', description: 'Login page' }
-          ]
-        },
-        {
-          section: 'Employee',
-          roles: ['employee', 'manager', 'admin'],
-          routes: [
-            { path: '/employee/scan', method: 'GET', description: 'Scan products' },
-            { path: '/employee/sort', method: 'GET', description: 'Sort inventory' },
-            { path: '/employee/returns', method: 'GET', description: 'Process returns' }
-          ]
-        },
-        {
-          section: 'Client',
-          roles: ['client', 'admin'],
-          routes: [
-            { path: '/client/:clientCode', method: 'GET', description: 'Client dashboard' },
-            { path: '/client/:clientCode/inventory', method: 'GET', description: 'View inventory' },
-            { path: '/client/:clientCode/inventory/:itemId', method: 'GET', description: 'Item details' },
-            { path: '/client/:clientCode/products', method: 'GET', description: 'Product catalog' },
-            { path: '/client/:clientCode/products/:productId', method: 'GET', description: 'Product details' }
-          ]
-        },
-        {
-          section: 'Manager',
-          roles: ['manager', 'admin'],
-          routes: [
-            { path: '/manager', method: 'GET', description: 'Manager dashboard' },
-            { path: '/manager/import', method: 'GET', description: 'Import products' },
-            { path: '/manager/locations', method: 'GET', description: 'Manage locations' },
-            { path: '/manager/products', method: 'GET', description: 'View all products' },
-            { path: '/manager/products/new', method: 'GET', description: 'Create product' },
-            { path: '/manager/products/:id', method: 'GET', description: 'Product details' },
-            { path: '/manager/users', method: 'GET', description: 'User management' },
-            { path: '/manager/returns', method: 'GET', description: 'Returns management' },
-            { path: '/manager/returns/import', method: 'GET', description: 'Import returns' },
-            { path: '/manager/returns/unmatched', method: 'GET', description: 'Unmatched returns' },
-            { path: '/manager/returns/:id', method: 'GET', description: 'Return details' }
-          ]
-        },
-        {
-          section: 'System Admin',
-          roles: ['admin'],
-          routes: [
-            { path: '/admin', method: 'GET', description: 'Admin dashboard' },
-            { path: '/admin/system', method: 'GET', description: 'System status' },
-            { path: '/admin/statistics', method: 'GET', description: 'Analytics' },
-            { path: '/admin/schema', method: 'GET', description: 'Database schema' },
-            { path: '/admin/db-browser', method: 'GET', description: 'Database browser' },
-            { path: '/admin/db-browser/:table', method: 'GET', description: 'Browse table' },
-            { path: '/admin/db-browser/:table/:id', method: 'GET', description: 'View record' },
-            { path: '/admin/navigation', method: 'GET', description: 'Route map' },
-            { path: '/admin/api-docs', method: 'GET', description: 'API documentation' }
-          ]
-        }
-      ],
-      api: [
-        {
-          section: 'Auth',
-          routes: [
-            { path: '/api/auth/login', method: 'POST', description: 'User login' },
-            { path: '/api/auth/me', method: 'GET', description: 'Get current user' }
-          ]
-        },
-        {
-          section: 'Products',
-          routes: [
-            { path: '/api/products/search', method: 'GET', description: 'Search products' },
-            { path: '/api/products/scan/:upc', method: 'GET', description: 'Scan UPC' },
-            { path: '/api/products/:id', method: 'GET', description: 'Get product' },
-            { path: '/api/products/:id/detail', method: 'GET', description: 'Product details' },
-            { path: '/api/products', method: 'POST', description: 'Create product' },
-            { path: '/api/products/:id/photos', method: 'POST', description: 'Add photo' }
-          ]
-        },
-        {
-          section: 'Inventory',
-          routes: [
-            { path: '/api/inventory', method: 'GET', description: 'List inventory' },
-            { path: '/api/inventory/:id', method: 'GET', description: 'Get item' },
-            { path: '/api/inventory', method: 'POST', description: 'Create item' },
-            { path: '/api/inventory/receive', method: 'POST', description: 'Receive inventory' },
-            { path: '/api/inventory/:id/adjust', method: 'POST', description: 'Adjust quantity' },
-            { path: '/api/inventory/:id/move', method: 'POST', description: 'Move item' }
-          ]
-        },
-        {
-          section: 'Manager',
-          routes: [
-            { path: '/api/manager/dashboard', method: 'GET', description: 'Dashboard stats' },
-            { path: '/api/manager/locations', method: 'GET', description: 'List locations' },
-            { path: '/api/manager/import', method: 'POST', description: 'Import products' },
-            { path: '/api/manager/users', method: 'GET', description: 'List users' }
-          ]
-        },
-        {
-          section: 'System Admin',
-          routes: [
-            { path: '/api/admin/server-status', method: 'GET', description: 'Server status' },
-            { path: '/api/admin/statistics', method: 'GET', description: 'Statistics' },
-            { path: '/api/admin/schema', method: 'GET', description: 'Database schema' },
-            { path: '/api/admin/db-browser/tables', method: 'GET', description: 'List tables' },
-            { path: '/api/admin/db-browser/tables/:name/data', method: 'GET', description: 'Table data' }
-          ]
-        }
-      ]
+      routes: frontendRoutes,
+      api: apiSections
     });
   } catch (error) {
     next(error);
@@ -307,13 +207,17 @@ router.get('/navigation', authenticate, authorize('admin'), async (req, res, nex
 
 // ==================== API DOCS ====================
 
-// Get API documentation
+// Get API documentation (dynamically generated)
 router.get('/api-docs', authenticate, authorize('admin'), async (req, res, next) => {
   try {
+    // Introspect API routes from Express app
+    const extractedRoutes = routeIntrospector.extractRoutes(req.app);
+    const endpoints = routeIntrospector.formatForApiDocs(extractedRoutes);
+
     res.json({
       title: 'Warehouse Reset API',
       version: '1.0.0',
-      description: 'API documentation for the Warehouse Reset system',
+      description: 'API documentation for the Warehouse Reset system (auto-generated from route introspection)',
       baseUrl: '/api',
       authentication: {
         type: 'Bearer Token',
@@ -333,87 +237,7 @@ router.get('/api-docs', authenticate, authorize('admin'), async (req, res, next)
         employee: 'Warehouse worker - scanning, sorting, returns processing',
         client: 'External client - view own inventory and products only'
       },
-      endpoints: {
-        products: {
-          'GET /products/search': {
-            description: 'Search products by title, UPC, SKU, ASIN',
-            params: { q: 'string', client_id: 'number (optional)' },
-            auth: 'Any authenticated user'
-          },
-          'GET /products/scan/:upc': {
-            description: 'Find product by exact UPC match',
-            params: { upc: 'string' },
-            auth: 'Any authenticated user'
-          },
-          'GET /products/:id': {
-            description: 'Get product by ID',
-            auth: 'Any authenticated user'
-          },
-          'POST /products': {
-            description: 'Create new product',
-            body: { upc: 'string', title: 'string' },
-            auth: 'manager, admin, employee'
-          }
-        },
-        inventory: {
-          'GET /inventory': {
-            description: 'List inventory items with filters',
-            params: { client_id: 'number', status: 'string', location_id: 'number', condition: 'string' },
-            auth: 'Any authenticated user'
-          },
-          'POST /inventory/receive': {
-            description: 'Receive new inventory',
-            body: {
-              product_id: 'number',
-              client_id: 'number',
-              quantity: 'number',
-              condition: 'string',
-              storage_location_id: 'number'
-            },
-            auth: 'manager, admin, employee'
-          }
-        },
-        manager: {
-          'GET /manager/dashboard': {
-            description: 'Get dashboard statistics',
-            auth: 'manager, admin'
-          },
-          'POST /manager/import': {
-            description: 'Import products from Excel',
-            body: 'FormData with file, client_code, marketplace',
-            auth: 'manager, admin'
-          },
-          'GET /manager/users': {
-            description: 'List all users',
-            auth: 'manager, admin'
-          },
-          'POST /manager/users': {
-            description: 'Create new user',
-            body: { email: 'string', password: 'string', name: 'string', role: 'string' },
-            auth: 'manager, admin'
-          }
-        },
-        admin: {
-          'GET /admin/server-status': {
-            description: 'Get server health metrics',
-            auth: 'admin only'
-          },
-          'GET /admin/statistics': {
-            description: 'Get analytics data',
-            params: { period: '7d|30d|90d' },
-            auth: 'admin only'
-          },
-          'GET /admin/schema': {
-            description: 'Get full database schema',
-            auth: 'admin only'
-          },
-          'GET /admin/db-browser/tables/:name/data': {
-            description: 'Browse table data',
-            params: { page: 'number', limit: 'number', sortBy: 'string', sortOrder: 'asc|desc' },
-            auth: 'admin only'
-          }
-        }
-      }
+      endpoints
     });
   } catch (error) {
     next(error);
