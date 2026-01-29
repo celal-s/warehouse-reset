@@ -1,13 +1,15 @@
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 export default function BackButton() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const currentPath = location.pathname
 
-  // Auto-hide on Home and Login pages
+  // Return placeholder on Home and Login pages to prevent layout shift
   if (currentPath === '/' || currentPath === '/login') {
-    return null
+    return <div className="w-6 h-6" aria-hidden="true" />
   }
 
   const handleClick = () => {
@@ -23,16 +25,23 @@ export default function BackButton() {
     } else if (currentPath.startsWith('/admin')) {
       navigate('/admin')
     } else if (currentPath.startsWith('/client/')) {
-      // Extract client code from path like /client/{clientCode}/...
-      const pathParts = currentPath.split('/')
-      const clientCode = pathParts[2]
-      if (clientCode) {
-        navigate(`/client/${clientCode}`)
+      // If user is NOT a client (e.g., manager viewing client portal), go to their dashboard
+      if (user?.role === 'manager') {
+        navigate('/manager')
+      } else if (user?.role === 'admin') {
+        navigate('/admin')
       } else {
-        navigate('/')
+        // Actual client users stay in their portal
+        const pathParts = currentPath.split('/')
+        const clientCode = pathParts[2]
+        if (clientCode) {
+          navigate(`/client/${clientCode}`)
+        } else {
+          navigate('/')
+        }
       }
     } else if (currentPath.startsWith('/employee')) {
-      navigate('/employee')
+      navigate('/employee/scan')
     } else {
       navigate('/')
     }

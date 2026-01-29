@@ -71,27 +71,27 @@ function App() {
 
           {/* Client Routes (with client code) */}
           <Route path="/client/:clientCode" element={
-            <ProtectedRoute allowedRoles={['admin', 'client']}>
+            <ProtectedRoute allowedRoles={['admin', 'manager', 'client']}>
               <ClientDashboard />
             </ProtectedRoute>
           } />
           <Route path="/client/:clientCode/inventory" element={
-            <ProtectedRoute allowedRoles={['admin', 'client']}>
+            <ProtectedRoute allowedRoles={['admin', 'manager', 'client']}>
               <ClientInventory />
             </ProtectedRoute>
           } />
           <Route path="/client/:clientCode/inventory/:itemId" element={
-            <ProtectedRoute allowedRoles={['admin', 'client']}>
+            <ProtectedRoute allowedRoles={['admin', 'manager', 'client']}>
               <ClientItemDetail />
             </ProtectedRoute>
           } />
           <Route path="/client/:clientCode/products" element={
-            <ProtectedRoute allowedRoles={['admin', 'client']}>
+            <ProtectedRoute allowedRoles={['admin', 'manager', 'client']}>
               <ClientProducts />
             </ProtectedRoute>
           } />
           <Route path="/client/:clientCode/products/:productId" element={
-            <ProtectedRoute allowedRoles={['admin', 'client']}>
+            <ProtectedRoute allowedRoles={['admin', 'manager', 'client']}>
               <ClientProductDetail />
             </ProtectedRoute>
           } />
