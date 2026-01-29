@@ -1,7 +1,8 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import BackButton from './BackButton'
 
-export default function Layout({ children, title, backLink, navItems = [] }) {
+export default function Layout({ children, title, navItems = [] }) {
   const location = useLocation()
   const navigate = useNavigate()
   const { logout, isAuthenticated } = useAuth()
@@ -14,53 +15,56 @@ export default function Layout({ children, title, backLink, navItems = [] }) {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+      <header className="bg-white shadow-sm sticky top-0 z-10">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-4">
+            {/* Left: Back Button + Title */}
             <div className="flex items-center gap-4">
-              {backLink && (
-                <Link
-                  to={backLink}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </Link>
-              )}
+              <BackButton />
               <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
             </div>
-            {navItems.length > 0 && (
-              <nav className="flex gap-4">
-                {navItems.map((item) => (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    className={`px-3 py-2 rounded-md text-sm font-medium ${
-                      location.pathname === item.to
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </nav>
-            )}
-            {isAuthenticated && (
-              <button
-                onClick={handleLogout}
-                className="ml-4 px-3 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md"
-              >
-                Sign Out
-              </button>
-            )}
+
+            {/* Center: Navigation */}
+            <div className="flex justify-center">
+              {navItems.length > 0 && (
+                <nav className="flex gap-4">
+                  {navItems.map((item) => (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      className={`px-3 py-2 rounded-md text-sm font-medium ${
+                        location.pathname === item.to
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </nav>
+              )}
+            </div>
+
+            {/* Right: Sign Out Icon */}
+            <div className="flex justify-end">
+              {isAuthenticated && (
+                <button
+                  onClick={handleLogout}
+                  title="Sign Out"
+                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {children}
       </main>
     </div>

@@ -45,7 +45,7 @@ export default function AdminApiDocs() {
   }
 
   return (
-    <Layout title="API Documentation" backLink="/admin" navItems={adminNavItems}>
+    <Layout title="API Documentation" navItems={adminNavItems}>
       {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
           {error}

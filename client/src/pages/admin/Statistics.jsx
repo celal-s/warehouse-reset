@@ -61,7 +61,7 @@ export default function AdminStatistics() {
   })) || []
 
   return (
-    <Layout title="Statistics" backLink="/admin" navItems={adminNavItems}>
+    <Layout title="Statistics" navItems={adminNavItems}>
       {/* Period Selector */}
       <div className="mb-6 flex items-center gap-4">
         <span className="text-sm text-gray-600">Period:</span>

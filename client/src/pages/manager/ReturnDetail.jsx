@@ -137,7 +137,7 @@ export default function ManagerReturnDetail() {
 
   if (loading) {
     return (
-      <Layout title="Return Detail" backLink="/admin/returns" navItems={managerNavItems}>
+      <Layout title="Return Detail" navItems={managerNavItems}>
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-2 text-gray-500">Loading return...</p>
@@ -148,7 +148,7 @@ export default function ManagerReturnDetail() {
 
   if (error && !returnItem) {
     return (
-      <Layout title="Return Detail" backLink="/admin/returns" navItems={managerNavItems}>
+      <Layout title="Return Detail" navItems={managerNavItems}>
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
           {error}
         </div>
@@ -160,7 +160,7 @@ export default function ManagerReturnDetail() {
   const isActive = returnItem && !['completed', 'cancelled'].includes(returnItem.status)
 
   return (
-    <Layout title="Return Detail" backLink="/admin/returns" navItems={managerNavItems}>
+    <Layout title="Return Detail" navItems={managerNavItems}>
       {success && (
         <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm flex items-center gap-2">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

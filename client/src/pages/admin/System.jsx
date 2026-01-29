@@ -78,7 +78,7 @@ export default function AdminSystem() {
     : 0
 
   return (
-    <Layout title="System Status" backLink="/admin" navItems={adminNavItems}>
+    <Layout title="System Status" navItems={adminNavItems}>
       {/* Controls */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">

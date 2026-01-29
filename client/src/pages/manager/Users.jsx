@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Layout from '../../components/Layout'
+import { DataTable } from '../../components/DataTable'
+import { Button, Alert, StatusBadge } from '../../components/ui'
 import { getUsers, createUser, updateUser, resetUserPassword, deleteUser, getClients } from '../../api'
 
 const managerNavItems = [
@@ -144,64 +146,116 @@ export default function ManagerUsers() {
     }
   }
 
-  const getRoleBadge = (role) => {
-    const styles = {
-      admin: 'bg-purple-100 text-purple-800',
-      employee: 'bg-blue-100 text-blue-800',
-      client: 'bg-green-100 text-green-800'
-    }
-    return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[role] || 'bg-gray-100 text-gray-800'}`}>
-        {role}
-      </span>
-    )
-  }
-
-  const getStatusBadge = (isActive) => {
-    return isActive ? (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-        Active
-      </span>
-    ) : (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-        Inactive
-      </span>
-    )
-  }
+  // Column definitions for DataTable
+  const columns = useMemo(() => [
+    {
+      id: 'user',
+      header: 'User',
+      accessorKey: 'name',
+      enableSorting: false,
+      cell: ({ row }) => (
+        <div>
+          <div className="font-medium text-gray-900">{row.original.name}</div>
+          <div className="text-sm text-gray-500">{row.original.email}</div>
+        </div>
+      ),
+    },
+    {
+      id: 'role',
+      header: 'Role',
+      accessorKey: 'role',
+      enableSorting: false,
+      cell: ({ row }) => <StatusBadge status={row.original.role} />,
+    },
+    {
+      id: 'client',
+      header: 'Client',
+      accessorKey: 'client_code',
+      enableSorting: false,
+      cell: ({ row }) => (
+        <span className="text-sm text-gray-500">
+          {row.original.client_code ? `${row.original.client_code} - ${row.original.client_name}` : '-'}
+        </span>
+      ),
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      accessorKey: 'is_active',
+      enableSorting: false,
+      cell: ({ row }) => (
+        <StatusBadge status={row.original.is_active ? 'active' : 'inactive'} />
+      ),
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      enableSorting: false,
+      cell: ({ row }) => {
+        const user = row.original
+        return (
+          <div className="flex gap-2">
+            <Button
+              variant="link"
+              size="sm"
+              onClick={() => {
+                setEditingUser(user)
+                setEditForm({
+                  name: user.name,
+                  role: user.role,
+                  client_code: user.client_code || ''
+                })
+              }}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="link"
+              size="sm"
+              className="text-yellow-600 hover:text-yellow-800"
+              onClick={() => setResetPasswordUser(user)}
+            >
+              Reset PW
+            </Button>
+            <Button
+              variant="link"
+              size="sm"
+              className={user.is_active ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800'}
+              onClick={() => handleToggleActive(user)}
+            >
+              {user.is_active ? 'Deactivate' : 'Activate'}
+            </Button>
+          </div>
+        )
+      },
+    },
+  ], [])
 
   return (
-    <Layout title="User Management" backLink="/admin" navItems={managerNavItems}>
+    <Layout title="User Management" navItems={managerNavItems}>
       {/* Success message */}
       {success && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <div className="flex items-center gap-2 text-green-700">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            {success}
-          </div>
-        </div>
+        <Alert variant="success" className="mb-6" onDismiss={() => setSuccess(null)}>
+          {success}
+        </Alert>
       )}
 
       {/* Error message */}
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+        <Alert variant="error" className="mb-6" onDismiss={() => setError(null)}>
           {error}
-          <button onClick={() => setError(null)} className="float-right text-red-500 hover:text-red-700">
-            &times;
-          </button>
-        </div>
+        </Alert>
       )}
 
       {/* Header with create button */}
       <div className="mb-6 flex justify-between items-center">
         <h2 className="text-lg font-medium text-gray-900">All Users</h2>
-        <button
+        <Button
+          variant={showCreateForm ? 'secondary' : 'primary'}
           onClick={() => setShowCreateForm(!showCreateForm)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           {showCreateForm ? 'Cancel' : 'Create User'}
-        </button>
+        </Button>
       </div>
 
       {/* Create user form */}
@@ -276,111 +330,35 @@ export default function ManagerUsers() {
               )}
             </div>
             <div className="flex justify-end gap-2">
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => setShowCreateForm(false)}
-                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
-                disabled={createLoading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400"
+                loading={createLoading}
               >
-                {createLoading ? 'Creating...' : 'Create User'}
-              </button>
+                Create User
+              </Button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Loading */}
-      {loading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-2 text-gray-500">Loading users...</p>
-        </div>
-      ) : users.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900">No users found</h3>
-          <p className="mt-1 text-gray-500">Create your first user above.</p>
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Role
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Client
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {users.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div>
-                      <div className="font-medium text-gray-900">{user.name}</div>
-                      <div className="text-sm text-gray-500">{user.email}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    {getRoleBadge(user.role)}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {user.client_code ? `${user.client_code} - ${user.client_name}` : '-'}
-                  </td>
-                  <td className="px-6 py-4">
-                    {getStatusBadge(user.is_active)}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          setEditingUser(user)
-                          setEditForm({
-                            name: user.name,
-                            role: user.role,
-                            client_code: user.client_code || ''
-                          })
-                        }}
-                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => setResetPasswordUser(user)}
-                        className="text-yellow-600 hover:text-yellow-800 text-sm font-medium"
-                      >
-                        Reset PW
-                      </button>
-                      <button
-                        onClick={() => handleToggleActive(user)}
-                        className={`text-sm font-medium ${user.is_active ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800'}`}
-                      >
-                        {user.is_active ? 'Deactivate' : 'Activate'}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {/* Users DataTable */}
+      <DataTable
+        columns={columns}
+        data={users}
+        loading={loading}
+        emptyState={{
+          title: 'No users found',
+          description: 'Create your first user above.'
+        }}
+        getRowId={(row) => row.id}
+      />
 
       {/* Edit User Modal */}
       {editingUser && (
@@ -427,20 +405,19 @@ export default function ManagerUsers() {
                 </div>
               )}
               <div className="flex justify-end gap-2 pt-4">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={() => setEditingUser(null)}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  disabled={editLoading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400"
+                  loading={editLoading}
                 >
-                  {editLoading ? 'Saving...' : 'Save Changes'}
-                </button>
+                  Save Changes
+                </Button>
               </div>
             </form>
           </div>
@@ -468,23 +445,23 @@ export default function ManagerUsers() {
                 />
               </div>
               <div className="flex justify-end gap-2 pt-4">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={() => {
                     setResetPasswordUser(null)
                     setNewPassword('')
                   }}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  disabled={resetLoading}
-                  className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:bg-yellow-400"
+                  variant="warning"
+                  loading={resetLoading}
                 >
-                  {resetLoading ? 'Resetting...' : 'Reset Password'}
-                </button>
+                  Reset Password
+                </Button>
               </div>
             </form>
           </div>

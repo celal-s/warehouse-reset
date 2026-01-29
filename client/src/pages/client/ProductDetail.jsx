@@ -59,7 +59,7 @@ export default function ClientProductDetail() {
 
   if (loading) {
     return (
-      <Layout title="Product Detail" backLink={`/client/${clientCode}/products`} navItems={navItems}>
+      <Layout title="Product Detail" navItems={navItems}>
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-2 text-gray-500">Loading product...</p>
@@ -70,7 +70,7 @@ export default function ClientProductDetail() {
 
   if (error) {
     return (
-      <Layout title="Product Detail" backLink={`/client/${clientCode}/products`} navItems={navItems}>
+      <Layout title="Product Detail" navItems={navItems}>
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
           {error}
         </div>
@@ -79,7 +79,7 @@ export default function ClientProductDetail() {
   }
 
   return (
-    <Layout title="Product Detail" backLink={`/client/${clientCode}/products`} navItems={navItems}>
+    <Layout title="Product Detail" navItems={navItems}>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Info */}
         <div className="lg:col-span-2 space-y-6">

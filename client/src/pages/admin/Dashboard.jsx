@@ -13,7 +13,7 @@ const adminNavItems = [
 
 export default function AdminDashboard() {
   return (
-    <Layout title="System Admin" backLink="/" navItems={adminNavItems}>
+    <Layout title="System Admin" navItems={adminNavItems}>
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">

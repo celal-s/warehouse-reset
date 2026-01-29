@@ -36,7 +36,7 @@ export default function DbBrowser() {
   const totalRows = tables.reduce((sum, t) => sum + t.rowCount, 0)
 
   return (
-    <Layout title="Database Browser" backLink="/admin" navItems={adminNavItems}>
+    <Layout title="Database Browser" navItems={adminNavItems}>
       {/* Read-only Banner */}
       <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
         <div className="flex items-center gap-3">

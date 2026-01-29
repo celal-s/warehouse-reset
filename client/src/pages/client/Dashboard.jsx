@@ -34,7 +34,7 @@ export default function ClientDashboard() {
 
   if (loading) {
     return (
-      <Layout title={`Client: ${clientCode}`} backLink="/" navItems={navItems}>
+      <Layout title={`Client: ${clientCode}`} navItems={navItems}>
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-2 text-gray-500">Loading dashboard...</p>
@@ -45,7 +45,7 @@ export default function ClientDashboard() {
 
   if (error) {
     return (
-      <Layout title={`Client: ${clientCode}`} backLink="/" navItems={navItems}>
+      <Layout title={`Client: ${clientCode}`} navItems={navItems}>
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
           {error}
         </div>
@@ -54,7 +54,7 @@ export default function ClientDashboard() {
   }
 
   return (
-    <Layout title={`Client: ${clientCode}`} backLink="/" navItems={navItems}>
+    <Layout title={`Client: ${clientCode}`} navItems={navItems}>
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {/* Total Items */}

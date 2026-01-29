@@ -153,7 +153,7 @@ export default function AdminSchema() {
   }, [schema, search])
 
   return (
-    <Layout title="Database Schema" backLink="/admin" navItems={adminNavItems}>
+    <Layout title="Database Schema" navItems={adminNavItems}>
       {/* Controls */}
       <div className="mb-6 flex flex-wrap items-center gap-4">
         {/* View Toggle */}

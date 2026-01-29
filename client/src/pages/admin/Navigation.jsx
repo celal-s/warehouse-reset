@@ -49,7 +49,7 @@ export default function AdminNavigation() {
   }
 
   return (
-    <Layout title="Route Map" backLink="/admin" navItems={adminNavItems}>
+    <Layout title="Route Map" navItems={adminNavItems}>
       {/* Tab Toggle */}
       <div className="mb-6 flex bg-gray-100 rounded-lg p-1 w-fit">
         <button

@@ -34,7 +34,7 @@ export default function ManagerDashboard() {
 
   if (loading) {
     return (
-      <Layout title="Manager Dashboard" backLink="/" navItems={managerNavItems}>
+      <Layout title="Manager Dashboard" navItems={managerNavItems}>
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
@@ -44,7 +44,7 @@ export default function ManagerDashboard() {
 
   if (error) {
     return (
-      <Layout title="Manager Dashboard" backLink="/" navItems={managerNavItems}>
+      <Layout title="Manager Dashboard" navItems={managerNavItems}>
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
           {error}
         </div>
@@ -53,7 +53,7 @@ export default function ManagerDashboard() {
   }
 
   return (
-    <Layout title="Manager Dashboard" backLink="/" navItems={managerNavItems}>
+    <Layout title="Manager Dashboard" navItems={managerNavItems}>
       {/* Quick Actions */}
       <div className="mb-8">
         <h2 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h2>

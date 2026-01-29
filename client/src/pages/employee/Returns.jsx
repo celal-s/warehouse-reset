@@ -153,7 +153,7 @@ export default function EmployeeReturns() {
   }
 
   return (
-    <Layout title="Returns" backLink="/" navItems={employeeNavItems}>
+    <Layout title="Returns" navItems={employeeNavItems}>
       {/* Header */}
       <div className="mb-6 flex flex-wrap justify-between items-center gap-4">
         <div className="flex items-center gap-4">

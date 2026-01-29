@@ -46,7 +46,7 @@ export default function ManagerProductNew() {
   }
 
   return (
-    <Layout title="Add Product" backLink="/admin/products" navItems={managerNavItems}>
+    <Layout title="Add Product" navItems={managerNavItems}>
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-medium text-gray-900 mb-6">Create New Product</h2>

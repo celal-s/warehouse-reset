@@ -149,7 +149,7 @@ export default function ManagerProductDetail() {
 
   if (loading) {
     return (
-      <Layout title="Product Detail" backLink="/admin/products" navItems={managerNavItems}>
+      <Layout title="Product Detail" navItems={managerNavItems}>
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-2 text-gray-500">Loading product...</p>
@@ -160,7 +160,7 @@ export default function ManagerProductDetail() {
 
   if (error && !product) {
     return (
-      <Layout title="Product Detail" backLink="/admin/products" navItems={managerNavItems}>
+      <Layout title="Product Detail" navItems={managerNavItems}>
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
           {error}
         </div>
@@ -171,7 +171,7 @@ export default function ManagerProductDetail() {
   const displayImage = getDisplayImage()
 
   return (
-    <Layout title="Product Detail" backLink="/admin/products" navItems={managerNavItems}>
+    <Layout title="Product Detail" navItems={managerNavItems}>
       {success && (
         <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
           {success}

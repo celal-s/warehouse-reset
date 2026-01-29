@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import Layout from '../../components/Layout'
+import { DataTable, DataTableToolbar, useDataTable } from '../../components/DataTable'
+import { Button, Alert, Badge, StatusBadge } from '../../components/ui'
 import { getReturns, completeReturn } from '../../api'
 
 const managerNavItems = [
@@ -12,14 +14,15 @@ const managerNavItems = [
   { to: '/manager/returns', label: 'Returns' }
 ]
 
-const statusColors = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  matched: 'bg-blue-100 text-blue-800',
-  shipped: 'bg-purple-100 text-purple-800',
-  completed: 'bg-green-100 text-green-800',
-  cancelled: 'bg-gray-100 text-gray-600',
-  unmatched: 'bg-red-100 text-red-800'
-}
+const statusOptions = [
+  { value: '', label: 'All Statuses' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'matched', label: 'Matched' },
+  { value: 'shipped', label: 'Shipped' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'unmatched', label: 'Unmatched' }
+]
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '-'
@@ -55,77 +58,80 @@ const getUrgencyRowClass = (returnItem) => {
 }
 
 export default function ManagerReturns() {
-  const [searchParams, setSearchParams] = useSearchParams()
   const [returns, setReturns] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [completing, setCompleting] = useState(null)
-
-  // Filters
-  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '')
-  const [urgentOnly, setUrgentOnly] = useState(searchParams.get('urgent') === 'true')
-  const [clientFilter, setClientFilter] = useState(searchParams.get('client_id') || '')
-
-  // Pagination
-  const [page, setPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
-  const limit = 50
 
-  useEffect(() => {
-    loadReturns()
-  }, [page, statusFilter, urgentOnly, clientFilter])
+  // Use the DataTable hook for state management with URL sync
+  const {
+    page,
+    pageSize,
+    filters,
+    setPage,
+    setPageSize,
+    setFilter,
+    clearFilters,
+    hasActiveFilters,
+    pageSizeOptions
+  } = useDataTable({
+    defaultPageSize: 50,
+    defaultFilters: {
+      status: '',
+      urgent: '',
+      client_id: ''
+    }
+  })
 
-  const loadReturns = async () => {
+  // Derive urgentOnly from filters
+  const urgentOnly = filters.urgent === 'true'
+
+  // Load returns data
+  const loadReturns = useCallback(async () => {
     setLoading(true)
     setError(null)
 
     try {
-      const filters = {
+      const apiFilters = {
         page,
-        limit
+        limit: pageSize
       }
-      if (statusFilter) filters.status = statusFilter
-      if (clientFilter) filters.client_id = clientFilter
-      if (urgentOnly) filters.urgent = 'true'
+      if (filters.status) apiFilters.status = filters.status
+      if (filters.client_id) apiFilters.client_id = filters.client_id
+      if (filters.urgent === 'true') apiFilters.urgent = 'true'
 
-      const data = await getReturns(filters)
+      const data = await getReturns(apiFilters)
       setReturns(data.returns || data)
-      setTotalPages(data.totalPages || Math.ceil((data.total || data.length) / limit))
       setTotalCount(data.total || data.length)
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
-  }
+  }, [page, pageSize, filters])
 
-  const handleStatusChange = (status) => {
-    setStatusFilter(status)
-    setPage(1)
-    const params = new URLSearchParams(searchParams)
-    if (status) {
-      params.set('status', status)
-    } else {
-      params.delete('status')
-    }
-    setSearchParams(params)
-  }
+  useEffect(() => {
+    loadReturns()
+  }, [loadReturns])
 
-  const handleUrgentToggle = () => {
-    const newValue = !urgentOnly
-    setUrgentOnly(newValue)
-    setPage(1)
-    const params = new URLSearchParams(searchParams)
-    if (newValue) {
-      params.set('urgent', 'true')
-    } else {
-      params.delete('urgent')
-    }
-    setSearchParams(params)
-  }
+  // Handle status filter change
+  const handleStatusChange = useCallback((status) => {
+    setFilter('status', status)
+  }, [setFilter])
 
-  const handleComplete = async (returnId) => {
+  // Handle urgent toggle
+  const handleUrgentToggle = useCallback(() => {
+    setFilter('urgent', urgentOnly ? '' : 'true')
+  }, [setFilter, urgentOnly])
+
+  // Handle client filter change
+  const handleClientChange = useCallback((clientId) => {
+    setFilter('client_id', clientId)
+  }, [setFilter])
+
+  // Handle complete action
+  const handleComplete = useCallback(async (returnId) => {
     if (!confirm('Mark this return as completed?')) return
 
     setCompleting(returnId)
@@ -137,19 +143,229 @@ export default function ManagerReturns() {
     } finally {
       setCompleting(null)
     }
-  }
+  }, [loadReturns])
 
-  const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setPage(newPage)
+  // Define columns for the DataTable
+  const columns = useMemo(() => [
+    {
+      id: 'id',
+      header: 'ID',
+      accessorKey: 'id',
+      size: 80,
+      cell: ({ getValue }) => (
+        <span className="font-mono text-sm text-gray-600">
+          #{getValue()}
+        </span>
+      )
+    },
+    {
+      id: 'product',
+      header: 'Product',
+      accessorKey: 'product_name',
+      cell: ({ row }) => {
+        const item = row.original
+        return (
+          <div className="max-w-xs">
+            <div className="font-medium text-gray-900 truncate" title={item.product_name}>
+              {item.product_name || 'Unknown Product'}
+            </div>
+            {item.product_sku && (
+              <div className="text-sm text-gray-500 font-mono">
+                SKU: {item.product_sku}
+              </div>
+            )}
+            {item.tracking_number && (
+              <div className="text-xs text-gray-400 truncate" title={item.tracking_number}>
+                {item.tracking_number}
+              </div>
+            )}
+          </div>
+        )
+      }
+    },
+    {
+      id: 'client',
+      header: 'Client',
+      accessorKey: 'client_code',
+      size: 100,
+      cell: ({ getValue }) => (
+        <Badge variant="purple">
+          {getValue() || '-'}
+        </Badge>
+      )
+    },
+    {
+      id: 'quantity',
+      header: 'Qty',
+      accessorKey: 'quantity',
+      size: 60,
+      cell: ({ getValue }) => (
+        <span className="text-sm text-gray-900">
+          {getValue() || 1}
+        </span>
+      )
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      accessorKey: 'status',
+      size: 110,
+      cell: ({ getValue }) => (
+        <StatusBadge status={getValue()} />
+      )
+    },
+    {
+      id: 'return_by',
+      header: 'Return By',
+      accessorKey: 'return_by_date',
+      size: 130,
+      cell: ({ row }) => {
+        const item = row.original
+        return (
+          <div className="flex items-center gap-1">
+            {isUrgent(item) && item.status !== 'completed' && item.status !== 'cancelled' && (
+              <svg className="w-4 h-4 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            )}
+            <span className="text-sm text-gray-600">
+              {formatDate(item.return_by_date)}
+            </span>
+          </div>
+        )
+      }
+    },
+    {
+      id: 'shipped',
+      header: 'Shipped',
+      accessorKey: 'shipped_at',
+      size: 110,
+      cell: ({ getValue }) => (
+        <span className="text-sm text-gray-600">
+          {formatDate(getValue())}
+        </span>
+      )
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      size: 140,
+      enableSorting: false,
+      cell: ({ row }) => {
+        const item = row.original
+        return (
+          <div className="flex items-center gap-2">
+            {item.status === 'shipped' && (
+              <Button
+                size="sm"
+                variant="success"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleComplete(item.id)
+                }}
+                disabled={completing === item.id}
+                loading={completing === item.id}
+              >
+                Complete
+              </Button>
+            )}
+            <Link
+              to={`/manager/returns/${item.id}`}
+              className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              View
+            </Link>
+          </div>
+        )
+      }
     }
+  ], [completing, handleComplete])
+
+  // Toolbar with filters
+  const toolbar = (
+    <DataTableToolbar
+      filters={[
+        {
+          id: 'status',
+          label: 'Status',
+          options: statusOptions,
+          value: filters.status,
+          onChange: handleStatusChange
+        }
+      ]}
+      actions={
+        <>
+          {/* Urgent Toggle */}
+          <Button
+            variant={urgentOnly ? 'primary' : 'outline'}
+            size="sm"
+            onClick={handleUrgentToggle}
+            className={urgentOnly ? 'bg-orange-600 hover:bg-orange-700' : ''}
+          >
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Urgent Only
+          </Button>
+
+          {/* Client Filter Input */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Client ID:</label>
+            <input
+              type="text"
+              value={filters.client_id || ''}
+              onChange={(e) => handleClientChange(e.target.value)}
+              placeholder="Filter by client..."
+              className="border rounded-lg px-3 py-1.5 text-sm w-32 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          {/* Clear Filters */}
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+            >
+              Clear Filters
+            </Button>
+          )}
+        </>
+      }
+    />
+  )
+
+  // Empty state configuration
+  const emptyState = {
+    icon: (
+      <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+      </svg>
+    ),
+    title: 'No returns found',
+    description: hasActiveFilters ? 'Try adjusting your filters to find what you\'re looking for.' : undefined,
+    action: hasActiveFilters ? (
+      <Button variant="link" onClick={clearFilters}>
+        Clear filters
+      </Button>
+    ) : undefined
   }
 
   return (
-    <Layout title="Returns Management" backLink="/" navItems={managerNavItems}>
+    <Layout title="Returns Management" navItems={managerNavItems}>
       {/* Header with Actions */}
       <div className="mb-6 flex flex-wrap justify-between items-center gap-4">
-        <h2 className="text-lg font-medium text-gray-900">All Returns</h2>
+        <div>
+          <h2 className="text-lg font-medium text-gray-900">All Returns</h2>
+          {!loading && (
+            <p className="text-sm text-gray-600 mt-1">
+              Showing {returns.length} of {totalCount} returns
+              {filters.status && ` (${filters.status})`}
+              {urgentOnly && ' - Urgent only'}
+            </p>
+          )}
+        </div>
         <div className="flex gap-2">
           <Link
             to="/manager/returns/import"
@@ -172,290 +388,29 @@ export default function ManagerReturns() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="mb-6 flex flex-wrap items-center gap-4">
-        {/* Status Filter */}
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-gray-700">Status:</label>
-          <select
-            value={statusFilter}
-            onChange={(e) => handleStatusChange(e.target.value)}
-            className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">All Statuses</option>
-            <option value="pending">Pending</option>
-            <option value="matched">Matched</option>
-            <option value="shipped">Shipped</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="unmatched">Unmatched</option>
-          </select>
-        </div>
-
-        {/* Urgent Toggle */}
-        <button
-          onClick={handleUrgentToggle}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            urgentOnly
-              ? 'bg-orange-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          Urgent Only
-        </button>
-
-        {/* Client Filter */}
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-gray-700">Client ID:</label>
-          <input
-            type="text"
-            value={clientFilter}
-            onChange={(e) => {
-              setClientFilter(e.target.value)
-              setPage(1)
-            }}
-            placeholder="Filter by client..."
-            className="border rounded-lg px-3 py-2 text-sm w-40 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-      </div>
-
-      {/* Error */}
+      {/* Error Alert */}
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+        <Alert variant="error" className="mb-6" onDismiss={() => setError(null)}>
           {error}
-        </div>
+        </Alert>
       )}
 
-      {/* Results Info */}
-      {!loading && (
-        <div className="mb-4 text-sm text-gray-600">
-          Showing {returns.length} of {totalCount} returns
-          {statusFilter && ` (${statusFilter})`}
-          {urgentOnly && ' - Urgent only'}
-        </div>
-      )}
-
-      {/* Returns Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
-        ) : returns.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <svg className="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            <p>No returns found</p>
-            {(statusFilter || urgentOnly || clientFilter) && (
-              <button
-                onClick={() => {
-                  setStatusFilter('')
-                  setUrgentOnly(false)
-                  setClientFilter('')
-                  setSearchParams({})
-                }}
-                className="mt-2 text-blue-600 hover:text-blue-800"
-              >
-                Clear filters
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    ID
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Product
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Client
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Qty
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Return By
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Shipped
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {returns.map((returnItem) => (
-                  <tr key={returnItem.id} className={`hover:bg-gray-50 ${getUrgencyRowClass(returnItem)}`}>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <span className="font-mono text-sm text-gray-600">
-                        #{returnItem.id}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="max-w-xs">
-                        <div className="font-medium text-gray-900 truncate" title={returnItem.product_name}>
-                          {returnItem.product_name || 'Unknown Product'}
-                        </div>
-                        {returnItem.product_sku && (
-                          <div className="text-sm text-gray-500 font-mono">
-                            SKU: {returnItem.product_sku}
-                          </div>
-                        )}
-                        {returnItem.tracking_number && (
-                          <div className="text-xs text-gray-400 truncate" title={returnItem.tracking_number}>
-                            {returnItem.tracking_number}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
-                        {returnItem.client_code || '-'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {returnItem.quantity || 1}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[returnItem.status] || 'bg-gray-100 text-gray-800'}`}>
-                        {returnItem.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1">
-                        {isUrgent(returnItem) && returnItem.status !== 'completed' && returnItem.status !== 'cancelled' && (
-                          <svg className="w-4 h-4 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                        <span className="text-sm text-gray-600">
-                          {formatDate(returnItem.return_by_date)}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {formatDate(returnItem.shipped_at)}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        {returnItem.status === 'shipped' && (
-                          <button
-                            onClick={() => handleComplete(returnItem.id)}
-                            disabled={completing === returnItem.id}
-                            className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 disabled:opacity-50 transition-colors"
-                          >
-                            {completing === returnItem.id ? (
-                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-                            ) : (
-                              'Complete'
-                            )}
-                          </button>
-                        )}
-                        <Link
-                          to={`/admin/returns/${returnItem.id}`}
-                          className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 transition-colors"
-                        >
-                          View
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-between">
-          <div className="text-sm text-gray-600">
-            Page {page} of {totalPages}
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => handlePageChange(1)}
-              disabled={page === 1}
-              className="px-3 py-2 border rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-              </svg>
-            </button>
-            <button
-              onClick={() => handlePageChange(page - 1)}
-              disabled={page === 1}
-              className="px-3 py-2 border rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-
-            {/* Page Numbers */}
-            <div className="flex gap-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum
-                if (totalPages <= 5) {
-                  pageNum = i + 1
-                } else if (page <= 3) {
-                  pageNum = i + 1
-                } else if (page >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i
-                } else {
-                  pageNum = page - 2 + i
-                }
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => handlePageChange(pageNum)}
-                    className={`px-3 py-2 border rounded-lg text-sm font-medium transition-colors ${
-                      page === pageNum
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                )
-              })}
-            </div>
-
-            <button
-              onClick={() => handlePageChange(page + 1)}
-              disabled={page === totalPages}
-              className="px-3 py-2 border rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-            <button
-              onClick={() => handlePageChange(totalPages)}
-              disabled={page === totalPages}
-              className="px-3 py-2 border rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Data Table */}
+      <DataTable
+        columns={columns}
+        data={returns}
+        loading={loading}
+        totalCount={totalCount}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+        pageSizeOptions={[25, 50, 100]}
+        toolbar={toolbar}
+        emptyState={emptyState}
+        getRowClassName={getUrgencyRowClass}
+        getRowId={(row) => row.id}
+      />
     </Layout>
   )
 }

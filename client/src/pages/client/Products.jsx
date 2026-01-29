@@ -45,7 +45,7 @@ export default function ClientProducts() {
   ]
 
   return (
-    <Layout title="Product Catalog" backLink={`/client/${clientCode}`} navItems={navItems}>
+    <Layout title="Product Catalog" navItems={navItems}>
       {/* Info Banner */}
       <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
         <div className="flex items-start gap-3">

@@ -101,7 +101,7 @@ export default function ReturnImport() {
   }
 
   return (
-    <Layout title="Import Return Labels" backLink="/admin/returns" navItems={managerNavItems}>
+    <Layout title="Import Return Labels" navItems={managerNavItems}>
       <div className="max-w-2xl mx-auto">
         {/* Import Form */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">

@@ -88,7 +88,7 @@ export default function ClientItemDetail() {
 
   if (loading) {
     return (
-      <Layout title="Item Details" backLink={`/client/${clientCode}/inventory`} navItems={navItems}>
+      <Layout title="Item Details" navItems={navItems}>
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-2 text-gray-500">Loading item...</p>
@@ -99,7 +99,7 @@ export default function ClientItemDetail() {
 
   if (error && !item) {
     return (
-      <Layout title="Item Details" backLink={`/client/${clientCode}/inventory`} navItems={navItems}>
+      <Layout title="Item Details" navItems={navItems}>
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
           {error}
         </div>
@@ -108,7 +108,7 @@ export default function ClientItemDetail() {
   }
 
   return (
-    <Layout title="Item Details" backLink={`/client/${clientCode}/inventory`} navItems={navItems}>
+    <Layout title="Item Details" navItems={navItems}>
       {/* Success message */}
       {success && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">

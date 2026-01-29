@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import Layout from '../../components/Layout'
+import { DataTable, DataTableToolbar } from '../../components/DataTable'
+import { Button, Alert, Badge, StatusBadge } from '../../components/ui'
 import { getClientInventory } from '../../api'
 
 export default function ClientInventory() {
@@ -44,46 +46,130 @@ export default function ClientInventory() {
     setSearchParams(newParams)
   }
 
-  const getStatusBadge = (status) => {
-    const styles = {
-      awaiting_decision: 'bg-yellow-100 text-yellow-800',
-      decision_made: 'bg-blue-100 text-blue-800',
-      processed: 'bg-green-100 text-green-800'
-    }
-    return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-800'}`}>
-        {status?.replace(/_/g, ' ') || 'unknown'}
-      </span>
-    )
-  }
-
-  const getConditionBadge = (condition) => {
-    const styles = {
-      sellable: 'bg-green-100 text-green-800',
-      damaged: 'bg-red-100 text-red-800'
-    }
-    return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[condition] || 'bg-gray-100 text-gray-800'}`}>
-        {condition}
-      </span>
-    )
-  }
-
+  // Decision badge helper (decisions not in StatusBadge config)
   const getDecisionBadge = (decision) => {
     if (!decision) return null
     const styles = {
-      ship_to_fba: 'bg-purple-100 text-purple-800',
-      return: 'bg-orange-100 text-orange-800',
-      dispose: 'bg-red-100 text-red-800',
-      keep_in_stock: 'bg-blue-100 text-blue-800',
-      other: 'bg-gray-100 text-gray-800'
+      ship_to_fba: 'purple',
+      return: 'orange',
+      dispose: 'red',
+      keep_in_stock: 'blue',
+      other: 'gray'
     }
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[decision] || 'bg-gray-100 text-gray-800'}`}>
+      <Badge variant={styles[decision] || 'gray'}>
         {decision.replace(/_/g, ' ')}
-      </span>
+      </Badge>
     )
   }
+
+  // Define columns for DataTable
+  const columns = useMemo(() => [
+    {
+      id: 'product',
+      header: 'Product',
+      accessorKey: 'product_title',
+      cell: ({ row }) => {
+        const item = row.original
+        const imageUrl = item.photos?.[0]?.url || item.display_image_url
+        return (
+          <div className="flex items-center gap-3">
+            {imageUrl && (
+              <img
+                src={imageUrl}
+                alt=""
+                className="w-10 h-10 object-cover rounded"
+                onError={(e) => { e.target.style.display = 'none' }}
+              />
+            )}
+            <div className="font-medium text-gray-900 truncate max-w-xs">
+              {item.product_title}
+            </div>
+          </div>
+        )
+      },
+      enableSorting: false,
+    },
+    {
+      id: 'upc',
+      header: 'UPC',
+      accessorKey: 'upc',
+      cell: ({ getValue }) => (
+        <span className="text-sm text-gray-500">{getValue() || '-'}</span>
+      ),
+      enableSorting: false,
+    },
+    {
+      id: 'qty',
+      header: 'Qty',
+      accessorKey: 'quantity',
+      cell: ({ getValue }) => (
+        <span className="text-sm text-gray-900">{getValue()}</span>
+      ),
+      enableSorting: false,
+    },
+    {
+      id: 'condition',
+      header: 'Condition',
+      accessorKey: 'condition',
+      cell: ({ getValue }) => <StatusBadge status={getValue()} />,
+      enableSorting: false,
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      accessorKey: 'status',
+      cell: ({ getValue }) => <StatusBadge status={getValue()} />,
+      enableSorting: false,
+    },
+    {
+      id: 'decision',
+      header: 'Decision',
+      accessorKey: 'client_decision',
+      cell: ({ getValue }) => getDecisionBadge(getValue()),
+      enableSorting: false,
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => (
+        <Link
+          to={`/client/${clientCode}/inventory/${row.original.id}`}
+          className="text-blue-600 hover:text-blue-800 font-medium"
+        >
+          View
+        </Link>
+      ),
+      enableSorting: false,
+    },
+  ], [clientCode])
+
+  // Filter configuration for toolbar
+  const filters = [
+    {
+      id: 'status',
+      label: 'Status',
+      options: [
+        { value: '', label: 'All statuses' },
+        { value: 'awaiting_decision', label: 'Awaiting Decision' },
+        { value: 'decision_made', label: 'Decision Made' },
+        { value: 'processed', label: 'Processed' }
+      ],
+      value: statusFilter,
+      onChange: (value) => updateFilter('status', value)
+    },
+    {
+      id: 'condition',
+      label: 'Condition',
+      options: [
+        { value: '', label: 'All conditions' },
+        { value: 'sellable', label: 'Sellable' },
+        { value: 'damaged', label: 'Damaged' }
+      ],
+      value: conditionFilter,
+      onChange: (value) => updateFilter('condition', value)
+    }
+  ]
 
   const navItems = [
     { to: `/client/${clientCode}`, label: 'Dashboard' },
@@ -91,145 +177,42 @@ export default function ClientInventory() {
     { to: `/client/${clientCode}/inventory`, label: 'Inventory' }
   ]
 
+  // Empty state configuration
+  const emptyState = {
+    icon: (
+      <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+      </svg>
+    ),
+    title: 'No items found',
+    description: statusFilter || conditionFilter ? 'Try adjusting your filters.' : 'No inventory items yet.'
+  }
+
   return (
-    <Layout title="Inventory" backLink={`/client/${clientCode}`} navItems={navItems}>
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex flex-wrap gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => updateFilter('status', e.target.value)}
-              className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All statuses</option>
-              <option value="awaiting_decision">Awaiting Decision</option>
-              <option value="decision_made">Decision Made</option>
-              <option value="processed">Processed</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Condition</label>
-            <select
-              value={conditionFilter}
-              onChange={(e) => updateFilter('condition', e.target.value)}
-              className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All conditions</option>
-              <option value="sellable">Sellable</option>
-              <option value="damaged">Damaged</option>
-            </select>
-          </div>
-          <div className="flex items-end">
-            <button
-              onClick={loadInventory}
-              className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              Refresh
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Error */}
+    <Layout title="Inventory" navItems={navItems}>
+      {/* Error alert */}
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+        <Alert variant="error" className="mb-6">
           {error}
-        </div>
+        </Alert>
       )}
 
-      {/* Loading */}
-      {loading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-2 text-gray-500">Loading inventory...</p>
-        </div>
-      ) : items.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg shadow">
-          <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-          </svg>
-          <h3 className="text-lg font-medium text-gray-900">No items found</h3>
-          <p className="mt-1 text-gray-500">
-            {statusFilter || conditionFilter ? 'Try adjusting your filters.' : 'No inventory items yet.'}
-          </p>
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Product
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  UPC
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Qty
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Condition
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Decision
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {items.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      {(item.photos?.[0] || item.display_image_url) && (
-                        <img
-                          src={item.photos?.[0]?.url || item.display_image_url}
-                          alt=""
-                          className="w-10 h-10 object-cover rounded"
-                          onError={(e) => { e.target.style.display = 'none' }}
-                        />
-                      )}
-                      <div className="font-medium text-gray-900 truncate max-w-xs">
-                        {item.product_title}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {item.upc || '-'}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    {item.quantity}
-                  </td>
-                  <td className="px-6 py-4">
-                    {getConditionBadge(item.condition)}
-                  </td>
-                  <td className="px-6 py-4">
-                    {getStatusBadge(item.status)}
-                  </td>
-                  <td className="px-6 py-4">
-                    {getDecisionBadge(item.client_decision)}
-                  </td>
-                  <td className="px-6 py-4">
-                    <Link
-                      to={`/client/${clientCode}/inventory/${item.id}`}
-                      className="text-blue-600 hover:text-blue-800 font-medium"
-                    >
-                      View
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        data={items}
+        loading={loading}
+        emptyState={emptyState}
+        toolbar={
+          <DataTableToolbar
+            filters={filters}
+            actions={
+              <Button variant="secondary" onClick={loadInventory}>
+                Refresh
+              </Button>
+            }
+          />
+        }
+      />
 
       {/* Item count */}
       {!loading && items.length > 0 && (

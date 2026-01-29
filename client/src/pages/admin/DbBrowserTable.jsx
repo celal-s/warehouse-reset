@@ -102,7 +102,7 @@ export default function DbBrowserTable() {
   return (
     <Layout
       title={`Browse: ${table}`}
-      backLink="/admin/db-browser"
+     
       navItems={adminNavItems}
     >
       {/* Read-only Banner */}

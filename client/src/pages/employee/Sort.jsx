@@ -63,7 +63,7 @@ export default function EmployeeSort() {
   ]
 
   return (
-    <Layout title="Sort Inventory" backLink="/" navItems={navItems}>
+    <Layout title="Sort Inventory" navItems={navItems}>
       {/* Filter */}
       <div className="mb-6 flex gap-2">
         <select
