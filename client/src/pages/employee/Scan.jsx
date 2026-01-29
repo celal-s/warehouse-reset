@@ -156,8 +156,9 @@ export default function EmployeeScan() {
   }
 
   const navItems = [
-    { to: '/employee/scan', label: 'Receive' },
-    { to: '/employee/sort', label: 'Sort' }
+    { to: '/employee/scan', label: 'Scan' },
+    { to: '/employee/sort', label: 'Sort' },
+    { to: '/employee/returns', label: 'Returns' }
   ]
 
   return (

@@ -58,7 +58,8 @@ export default function EmployeeSort() {
 
   const navItems = [
     { to: '/employee/scan', label: 'Scan' },
-    { to: '/employee/sort', label: 'Sort' }
+    { to: '/employee/sort', label: 'Sort' },
+    { to: '/employee/returns', label: 'Returns' }
   ]
 
   return (
