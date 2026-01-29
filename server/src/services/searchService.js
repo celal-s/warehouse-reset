@@ -21,7 +21,7 @@ const searchService = {
           'asin', cpl.asin,
           'fnsku', cpl.fnsku,
           'marketplace', m.code,
-          'amazon_url', CASE WHEN cpl.asin IS NOT NULL THEN 'https://www.amazon.com/dp/' || cpl.asin ELSE NULL END
+          'amazon_url', CASE WHEN cpl.asin IS NOT NULL AND m.domain IS NOT NULL THEN 'https://www.' || m.domain || '/dp/' || cpl.asin ELSE NULL END
         )) FILTER (WHERE c.id IS NOT NULL) as client_listings
       FROM products p
       LEFT JOIN client_product_listings cpl ON p.id = cpl.product_id
@@ -70,7 +70,7 @@ const searchService = {
           'asin', cpl.asin,
           'fnsku', cpl.fnsku,
           'marketplace', m.code,
-          'amazon_url', CASE WHEN cpl.asin IS NOT NULL THEN 'https://www.amazon.com/dp/' || cpl.asin ELSE NULL END
+          'amazon_url', CASE WHEN cpl.asin IS NOT NULL AND m.domain IS NOT NULL THEN 'https://www.' || m.domain || '/dp/' || cpl.asin ELSE NULL END
         )) FILTER (WHERE c.id IS NOT NULL) as client_listings,
         (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type, 'source', COALESCE(pp.photo_source, 'warehouse')))
          FROM product_photos pp WHERE pp.product_id = p.id) as photos,

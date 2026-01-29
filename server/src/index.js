@@ -48,6 +48,32 @@ const runMigrations = async () => {
     `);
     console.log('  - products table: columns verified');
 
+    // Add domain column to marketplaces for marketplace-aware Amazon URLs
+    await db.query(`
+      ALTER TABLE marketplaces ADD COLUMN IF NOT EXISTS domain VARCHAR(50);
+      UPDATE marketplaces SET domain = 'amazon.com' WHERE code = 'us' AND domain IS NULL;
+      UPDATE marketplaces SET domain = 'amazon.ca' WHERE code = 'ca' AND domain IS NULL;
+      UPDATE marketplaces SET domain = 'amazon.co.uk' WHERE code = 'uk' AND domain IS NULL;
+      UPDATE marketplaces SET domain = 'amazon.com.au' WHERE code = 'au' AND domain IS NULL;
+    `);
+    console.log('  - marketplaces table: domain column verified');
+
+    // Cleanup auto-created inventory items from old import script
+    // These are items with quantity=1, no location, awaiting_decision, sellable, no decisions
+    const cleanupResult = await db.query(`
+      DELETE FROM inventory_items
+      WHERE quantity = 1
+        AND storage_location_id IS NULL
+        AND status = 'awaiting_decision'
+        AND condition = 'sellable'
+        AND client_decision IS NULL
+        AND id NOT IN (SELECT DISTINCT inventory_item_id FROM client_decisions WHERE inventory_item_id IS NOT NULL)
+        AND id NOT IN (SELECT DISTINCT inventory_item_id FROM inventory_history WHERE inventory_item_id IS NOT NULL)
+    `);
+    if (cleanupResult.rowCount > 0) {
+      console.log(`  - inventory_items: cleaned up ${cleanupResult.rowCount} auto-created items`);
+    }
+
     // Add missing columns to client_product_listings table
     await db.query(`
       ALTER TABLE client_product_listings ADD COLUMN IF NOT EXISTS image_url VARCHAR(500);

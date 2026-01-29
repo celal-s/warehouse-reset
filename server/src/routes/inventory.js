@@ -38,9 +38,9 @@ router.get('/', authenticate, async (req, res, next) => {
          FROM inventory_photos ip WHERE ip.inventory_item_id = i.id) as inventory_photos,
         COALESCE(
           (SELECT pp.photo_url FROM product_photos pp WHERE pp.product_id = p.id ORDER BY pp.uploaded_at DESC LIMIT 1),
-          (SELECT CASE WHEN cpl.asin IS NOT NULL THEN 'https://www.amazon.com/dp/' || cpl.asin ELSE NULL END FROM client_product_listings cpl WHERE cpl.product_id = p.id AND cpl.client_id = c.id LIMIT 1)
+          (SELECT CASE WHEN cpl.asin IS NOT NULL AND m.domain IS NOT NULL THEN 'https://www.' || m.domain || '/dp/' || cpl.asin ELSE NULL END FROM client_product_listings cpl LEFT JOIN marketplaces m ON cpl.marketplace_id = m.id WHERE cpl.product_id = p.id AND cpl.client_id = c.id LIMIT 1)
         ) as display_image_url,
-        (SELECT CASE WHEN cpl.asin IS NOT NULL THEN 'https://www.amazon.com/dp/' || cpl.asin ELSE NULL END FROM client_product_listings cpl WHERE cpl.product_id = p.id AND cpl.client_id = c.id LIMIT 1) as amazon_url
+        (SELECT CASE WHEN cpl.asin IS NOT NULL AND m.domain IS NOT NULL THEN 'https://www.' || m.domain || '/dp/' || cpl.asin ELSE NULL END FROM client_product_listings cpl LEFT JOIN marketplaces m ON cpl.marketplace_id = m.id WHERE cpl.product_id = p.id AND cpl.client_id = c.id LIMIT 1) as amazon_url
       FROM inventory_items i
       JOIN products p ON i.product_id = p.id
       JOIN clients c ON i.client_id = c.id
@@ -116,15 +116,15 @@ router.get('/:id', authenticate, async (req, res, next) => {
         sl.id as location_id,
         sl.type as location_type,
         sl.label as location_label,
-        CASE WHEN cpl.asin IS NOT NULL THEN 'https://www.amazon.com/dp/' || cpl.asin ELSE NULL END as listing_image_url,
-        CASE WHEN cpl.asin IS NOT NULL THEN 'https://www.amazon.com/dp/' || cpl.asin ELSE NULL END as amazon_url,
+        CASE WHEN cpl.asin IS NOT NULL AND m.domain IS NOT NULL THEN 'https://www.' || m.domain || '/dp/' || cpl.asin ELSE NULL END as listing_image_url,
+        CASE WHEN cpl.asin IS NOT NULL AND m.domain IS NOT NULL THEN 'https://www.' || m.domain || '/dp/' || cpl.asin ELSE NULL END as amazon_url,
         (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type, 'source', COALESCE(pp.photo_source, 'warehouse')))
          FROM product_photos pp WHERE pp.product_id = p.id) as photos,
         (SELECT json_agg(jsonb_build_object('id', ip.id, 'url', ip.photo_url, 'type', ip.photo_type, 'notes', ip.notes, 'uploaded_at', ip.uploaded_at))
          FROM inventory_photos ip WHERE ip.inventory_item_id = i.id) as inventory_photos,
         COALESCE(
           (SELECT pp.photo_url FROM product_photos pp WHERE pp.product_id = p.id ORDER BY pp.uploaded_at DESC LIMIT 1),
-          CASE WHEN cpl.asin IS NOT NULL THEN 'https://www.amazon.com/dp/' || cpl.asin ELSE NULL END
+          CASE WHEN cpl.asin IS NOT NULL AND m.domain IS NOT NULL THEN 'https://www.' || m.domain || '/dp/' || cpl.asin ELSE NULL END
         ) as display_image_url,
         (SELECT json_agg(jsonb_build_object('id', cd.id, 'decision', cd.decision, 'shipping_label_url', cd.shipping_label_url, 'notes', cd.notes, 'decided_at', cd.decided_at))
          FROM client_decisions cd WHERE cd.inventory_item_id = i.id) as decision_history,
@@ -144,6 +144,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
       JOIN clients c ON i.client_id = c.id
       LEFT JOIN storage_locations sl ON i.storage_location_id = sl.id
       LEFT JOIN client_product_listings cpl ON cpl.product_id = p.id AND cpl.client_id = c.id
+      LEFT JOIN marketplaces m ON cpl.marketplace_id = m.id
       WHERE i.id = $1
     `, [id]);
 

@@ -107,12 +107,8 @@ async function importFile(filePath, clientCode, marketplaceCode) {
         DO UPDATE SET sku = $4, asin = $5, fnsku = $6
       `, [productId, clientId, marketplaceId, sku, asin, fnsku]);
 
-      // Create inventory item for client
-      await pool.query(`
-        INSERT INTO inventory_items (product_id, client_id, quantity, condition, status)
-        VALUES ($1, $2, 1, 'sellable', 'awaiting_decision')
-        ON CONFLICT DO NOTHING
-      `, [productId, clientId]);
+      // Note: Inventory items are NOT created here - they are created by employees
+      // when physical items are received and scanned at the warehouse
 
     } catch (error) {
       errors++;

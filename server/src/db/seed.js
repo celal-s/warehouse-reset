@@ -6,14 +6,14 @@ const seedData = async () => {
   try {
     console.log('Seeding database...');
 
-    // Insert marketplaces
+    // Insert marketplaces with domain
     await pool.query(`
-      INSERT INTO marketplaces (code, name) VALUES
-        ('us', 'United States'),
-        ('ca', 'Canada'),
-        ('uk', 'United Kingdom'),
-        ('au', 'Australia')
-      ON CONFLICT (code) DO NOTHING
+      INSERT INTO marketplaces (code, name, domain) VALUES
+        ('us', 'United States', 'amazon.com'),
+        ('ca', 'Canada', 'amazon.ca'),
+        ('uk', 'United Kingdom', 'amazon.co.uk'),
+        ('au', 'Australia', 'amazon.com.au')
+      ON CONFLICT (code) DO UPDATE SET domain = EXCLUDED.domain
     `);
 
     // Insert clients
