@@ -31,7 +31,7 @@ router.get('/', authenticate, async (req, res, next) => {
 });
 
 // Get pending returns for warehouse dashboard
-router.get('/pending', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
+router.get('/pending', authenticate, authorize('manager', 'admin', 'employee'), async (req, res, next) => {
   try {
     const returns = await returnsService.getPendingReturns();
     res.json(returns);
@@ -41,7 +41,7 @@ router.get('/pending', authenticate, authorize('admin', 'employee'), async (req,
 });
 
 // Get unmatched returns for admin review
-router.get('/unmatched', authenticate, authorize('admin'), async (req, res, next) => {
+router.get('/unmatched', authenticate, authorize('manager', 'admin'), async (req, res, next) => {
   try {
     const returns = await returnsService.getUnmatchedReturns();
     res.json(returns);
@@ -67,7 +67,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
 });
 
 // Create pre-receipt return
-router.post('/', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
+router.post('/', authenticate, authorize('manager', 'admin', 'employee'), async (req, res, next) => {
   try {
     const {
       product_id,
@@ -114,7 +114,7 @@ router.post('/', authenticate, authorize('admin', 'employee'), async (req, res, 
 });
 
 // Update return
-router.patch('/:id', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
+router.patch('/:id', authenticate, authorize('manager', 'admin', 'employee'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -132,7 +132,7 @@ router.patch('/:id', authenticate, authorize('admin', 'employee'), async (req, r
 });
 
 // Mark return as shipped
-router.post('/:id/ship', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
+router.post('/:id/ship', authenticate, authorize('manager', 'admin', 'employee'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { tracking_number, carrier, warehouse_notes } = req.body;
@@ -164,7 +164,7 @@ router.post('/:id/ship', authenticate, authorize('admin', 'employee'), async (re
 });
 
 // Mark return as completed
-router.post('/:id/complete', authenticate, authorize('admin'), async (req, res, next) => {
+router.post('/:id/complete', authenticate, authorize('manager', 'admin'), async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -191,7 +191,7 @@ router.post('/:id/complete', authenticate, authorize('admin'), async (req, res, 
 });
 
 // Manually assign product to unmatched return
-router.post('/:id/assign-product', authenticate, authorize('admin'), async (req, res, next) => {
+router.post('/:id/assign-product', authenticate, authorize('manager', 'admin'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { product_id } = req.body;
@@ -223,7 +223,7 @@ router.post('/:id/assign-product', authenticate, authorize('admin'), async (req,
 });
 
 // Import PDF backlog
-router.post('/import-backlog', authenticate, authorize('admin'), upload.array('files'), async (req, res, next) => {
+router.post('/import-backlog', authenticate, authorize('manager', 'admin'), upload.array('files'), async (req, res, next) => {
   try {
     const files = req.files;
 

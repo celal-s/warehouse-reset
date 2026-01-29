@@ -3,16 +3,16 @@ import { useNavigate } from 'react-router-dom'
 import Layout from '../../components/Layout'
 import { createProduct, getClients, getMarketplaces } from '../../api'
 
-const adminNavItems = [
-  { to: '/admin', label: 'Dashboard' },
-  { to: '/admin/import', label: 'Import' },
-  { to: '/admin/locations', label: 'Locations' },
-  { to: '/admin/products', label: 'Products' },
-  { to: '/admin/users', label: 'Users' },
-  { to: '/admin/returns', label: 'Returns' }
+const managerNavItems = [
+  { to: '/manager', label: 'Dashboard' },
+  { to: '/manager/import', label: 'Import' },
+  { to: '/manager/locations', label: 'Locations' },
+  { to: '/manager/products', label: 'Products' },
+  { to: '/manager/users', label: 'Users' },
+  { to: '/manager/returns', label: 'Returns' }
 ]
 
-export default function AdminProductNew() {
+export default function ManagerProductNew() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -46,7 +46,7 @@ export default function AdminProductNew() {
   }
 
   return (
-    <Layout title="Add Product" backLink="/admin/products" navItems={adminNavItems}>
+    <Layout title="Add Product" backLink="/admin/products" navItems={managerNavItems}>
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-medium text-gray-900 mb-6">Create New Product</h2>

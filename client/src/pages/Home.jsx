@@ -11,6 +11,8 @@ export default function Home() {
     if (isAuthenticated && user) {
       if (user.role === 'admin') {
         navigate('/admin')
+      } else if (user.role === 'manager') {
+        navigate('/manager')
       } else if (user.role === 'employee') {
         navigate('/employee/scan')
       } else if (user.role === 'client' && user.client_code) {

@@ -152,7 +152,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
 });
 
 // Create inventory item (employee adds from scan)
-router.post('/', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
+router.post('/', authenticate, authorize('manager', 'admin', 'employee'), async (req, res, next) => {
   try {
     const { product_id, client_id, storage_location_id, quantity, condition, new_location } = req.body;
 
@@ -213,7 +213,7 @@ router.post('/', authenticate, authorize('admin', 'employee'), async (req, res, 
 });
 
 // Update inventory item (location, quantity, condition)
-router.patch('/:id', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
+router.patch('/:id', authenticate, authorize('manager', 'admin', 'employee'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { storage_location_id, quantity, condition, status } = req.body;
@@ -269,7 +269,7 @@ router.patch('/:id', authenticate, authorize('admin', 'employee'), async (req, r
 });
 
 // Delete inventory item
-router.delete('/:id', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
+router.delete('/:id', authenticate, authorize('manager', 'admin', 'employee'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const result = await db.query('DELETE FROM inventory_items WHERE id = $1 RETURNING *', [id]);
@@ -285,7 +285,7 @@ router.delete('/:id', authenticate, authorize('admin', 'employee'), async (req, 
 });
 
 // Receive inventory (primary way to add stock)
-router.post('/receive', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
+router.post('/receive', authenticate, authorize('manager', 'admin', 'employee'), async (req, res, next) => {
   try {
     const { product_id, client_id, quantity, condition, storage_location_id, notes, lot_number, new_location } = req.body;
 
@@ -350,7 +350,7 @@ router.post('/receive', authenticate, authorize('admin', 'employee'), async (req
 });
 
 // Adjust inventory quantity
-router.post('/:id/adjust', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
+router.post('/:id/adjust', authenticate, authorize('manager', 'admin', 'employee'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { quantity_change, reason } = req.body;
@@ -386,7 +386,7 @@ router.post('/:id/adjust', authenticate, authorize('admin', 'employee'), async (
 });
 
 // Move inventory to different location
-router.post('/:id/move', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
+router.post('/:id/move', authenticate, authorize('manager', 'admin', 'employee'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { storage_location_id, reason, new_location } = req.body;
@@ -443,7 +443,7 @@ router.post('/:id/move', authenticate, authorize('admin', 'employee'), async (re
 });
 
 // Update condition
-router.post('/:id/condition', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
+router.post('/:id/condition', authenticate, authorize('manager', 'admin', 'employee'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { condition, notes } = req.body;
@@ -482,7 +482,7 @@ router.get('/:id/history', authenticate, async (req, res, next) => {
 });
 
 // Add photo to inventory item
-router.post('/:id/photos', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
+router.post('/:id/photos', authenticate, authorize('manager', 'admin', 'employee'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { photo_url, photo_type, notes } = req.body;

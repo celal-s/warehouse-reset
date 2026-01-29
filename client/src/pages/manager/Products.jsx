@@ -1,18 +1,18 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import Layout from '../../components/Layout'
-import { getAdminProducts, searchProducts } from '../../api'
+import { getManagerProducts, searchProducts } from '../../api'
 
-const adminNavItems = [
-  { to: '/admin', label: 'Dashboard' },
-  { to: '/admin/import', label: 'Import' },
-  { to: '/admin/locations', label: 'Locations' },
-  { to: '/admin/products', label: 'Products' },
-  { to: '/admin/users', label: 'Users' },
-  { to: '/admin/returns', label: 'Returns' }
+const managerNavItems = [
+  { to: '/manager', label: 'Dashboard' },
+  { to: '/manager/import', label: 'Import' },
+  { to: '/manager/locations', label: 'Locations' },
+  { to: '/manager/products', label: 'Products' },
+  { to: '/manager/users', label: 'Users' },
+  { to: '/manager/returns', label: 'Returns' }
 ]
 
-export default function AdminProducts() {
+export default function ManagerProducts() {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -38,7 +38,7 @@ export default function AdminProducts() {
     setError(null)
 
     try {
-      const data = await getAdminProducts(page, limit)
+      const data = await getManagerProducts(page, limit)
       setProducts(data.products || data)
       setTotalPages(data.totalPages || Math.ceil((data.total || data.length) / limit))
       setTotalCount(data.total || data.length)
@@ -91,12 +91,12 @@ export default function AdminProducts() {
   }
 
   return (
-    <Layout title="Products" backLink="/" navItems={adminNavItems}>
+    <Layout title="Products" backLink="/" navItems={managerNavItems}>
       {/* Header with Add Button */}
       <div className="mb-6 flex justify-between items-center">
         <h2 className="text-lg font-medium text-gray-900">Product Catalog</h2>
         <Link
-          to="/admin/products/new"
+          to="/manager/products/new"
           className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

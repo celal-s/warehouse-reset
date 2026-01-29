@@ -6,6 +6,7 @@ const path = require('path');
 const productRoutes = require('./routes/products');
 const inventoryRoutes = require('./routes/inventory');
 const clientRoutes = require('./routes/clients');
+const managerRoutes = require('./routes/manager');
 const adminRoutes = require('./routes/admin');
 const uploadRoutes = require('./routes/upload');
 const authRoutes = require('./routes/auth');
@@ -29,6 +30,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/products', productRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/clients', clientRoutes);
+app.use('/api/manager', managerRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/auth', authRoutes);

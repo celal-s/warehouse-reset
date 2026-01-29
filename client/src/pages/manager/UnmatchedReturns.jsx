@@ -3,13 +3,13 @@ import { Link } from 'react-router-dom'
 import Layout from '../../components/Layout'
 import { getUnmatchedReturns, assignReturnProduct, searchProducts } from '../../api'
 
-const adminNavItems = [
-  { to: '/admin', label: 'Dashboard' },
-  { to: '/admin/import', label: 'Import' },
-  { to: '/admin/locations', label: 'Locations' },
-  { to: '/admin/products', label: 'Products' },
-  { to: '/admin/users', label: 'Users' },
-  { to: '/admin/returns', label: 'Returns' }
+const managerNavItems = [
+  { to: '/manager', label: 'Dashboard' },
+  { to: '/manager/import', label: 'Import' },
+  { to: '/manager/locations', label: 'Locations' },
+  { to: '/manager/products', label: 'Products' },
+  { to: '/manager/users', label: 'Users' },
+  { to: '/manager/returns', label: 'Returns' }
 ]
 
 export default function UnmatchedReturns() {
@@ -165,7 +165,7 @@ export default function UnmatchedReturns() {
   }
 
   return (
-    <Layout title="Unmatched Returns" backLink="/admin/returns" navItems={adminNavItems}>
+    <Layout title="Unmatched Returns" backLink="/admin/returns" navItems={managerNavItems}>
       {/* Header */}
       <div className="mb-6 flex justify-between items-center">
         <div>
@@ -175,7 +175,7 @@ export default function UnmatchedReturns() {
           </p>
         </div>
         <Link
-          to="/admin/returns"
+          to="/manager/returns"
           className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -219,7 +219,7 @@ export default function UnmatchedReturns() {
           <h3 className="text-lg font-medium text-gray-900 mb-2">No Unmatched Returns</h3>
           <p className="text-gray-500 mb-4">All returns have been matched to products.</p>
           <Link
-            to="/admin/returns"
+            to="/manager/returns"
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             View All Returns

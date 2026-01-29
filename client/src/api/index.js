@@ -140,19 +140,19 @@ export const getClientProducts = (clientCode) => request(`/clients/${clientCode}
 export const getClientProduct = (clientCode, productId) =>
   request(`/clients/${clientCode}/products/${productId}`);
 
-// Admin
-export const getAdminDashboard = () => request('/admin/dashboard');
+// Manager (Warehouse operations)
+export const getManagerDashboard = () => request('/manager/dashboard');
 
-export const getActivityLog = (limit = 50) => request(`/admin/activity?limit=${limit}`);
+export const getActivityLog = (limit = 50) => request(`/manager/activity?limit=${limit}`);
 
-export const getLocations = () => request('/admin/locations');
+export const getLocations = () => request('/manager/locations');
 
-export const createLocation = (data) => request('/admin/locations', {
+export const createLocation = (data) => request('/manager/locations', {
   method: 'POST',
   body: JSON.stringify(data)
 });
 
-export const deleteLocation = (id) => request(`/admin/locations/${id}`, {
+export const deleteLocation = (id) => request(`/manager/locations/${id}`, {
   method: 'DELETE'
 });
 
@@ -162,40 +162,64 @@ export const importProducts = (file, clientCode, marketplace = 'us') => {
   formData.append('client_code', clientCode);
   formData.append('marketplace', marketplace);
 
-  return request('/admin/import', {
+  return request('/manager/import', {
     method: 'POST',
     body: formData
   });
 };
 
-export const getAdminProducts = (page = 1, limit = 50) =>
-  request(`/admin/products?page=${page}&limit=${limit}`);
+export const getManagerProducts = (page = 1, limit = 50) =>
+  request(`/manager/products?page=${page}&limit=${limit}`);
 
-export const getMarketplaces = () => request('/admin/marketplaces');
+export const getMarketplaces = () => request('/manager/marketplaces');
 
-// User Management (Admin)
-export const getUsers = () => request('/admin/users');
+// User Management (Manager)
+export const getUsers = () => request('/manager/users');
 
-export const getUser = (id) => request(`/admin/users/${id}`);
+export const getUser = (id) => request(`/manager/users/${id}`);
 
-export const createUser = (data) => request('/admin/users', {
+export const createUser = (data) => request('/manager/users', {
   method: 'POST',
   body: JSON.stringify(data)
 });
 
-export const updateUser = (id, data) => request(`/admin/users/${id}`, {
+export const updateUser = (id, data) => request(`/manager/users/${id}`, {
   method: 'PATCH',
   body: JSON.stringify(data)
 });
 
-export const resetUserPassword = (id, password) => request(`/admin/users/${id}/reset-password`, {
+export const resetUserPassword = (id, password) => request(`/manager/users/${id}/reset-password`, {
   method: 'POST',
   body: JSON.stringify({ password })
 });
 
-export const deleteUser = (id) => request(`/admin/users/${id}`, {
+export const deleteUser = (id) => request(`/manager/users/${id}`, {
   method: 'DELETE'
 });
+
+// System Admin (developer only)
+export const getAdminServerStatus = () => request('/admin/server-status');
+
+export const getAdminStatistics = (period = '7d') => request(`/admin/statistics?period=${period}`);
+
+export const getAdminNavigation = () => request('/admin/navigation');
+
+export const getAdminApiDocs = () => request('/admin/api-docs');
+
+export const getAdminSchema = () => request('/admin/schema');
+
+export const getAdminSchemaTable = (tableName) => request(`/admin/schema/tables/${tableName}`);
+
+export const getAdminDbTables = () => request('/admin/db-browser/tables');
+
+export const getAdminDbTableSchema = (tableName) => request(`/admin/db-browser/tables/${tableName}/schema`);
+
+export const getAdminDbTableData = (tableName, params = {}) => {
+  const queryParams = new URLSearchParams(params);
+  return request(`/admin/db-browser/tables/${tableName}/data?${queryParams}`);
+};
+
+export const getAdminDbRecord = (tableName, id) => request(`/admin/db-browser/tables/${tableName}/records/${id}`);
 
 // Upload
 export const getPhotoSignature = (productId) => request('/upload/signature/photo', {

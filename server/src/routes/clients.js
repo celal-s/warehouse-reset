@@ -6,7 +6,7 @@ const activityService = require('../services/activityService');
 const { authenticate, authorize } = require('../middleware/auth');
 
 // Get all clients (for admin/employee selection)
-router.get('/', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
+router.get('/', authenticate, authorize('manager', 'admin', 'employee'), async (req, res, next) => {
   try {
     const result = await db.query('SELECT * FROM clients ORDER BY client_code');
     res.json(result.rows);

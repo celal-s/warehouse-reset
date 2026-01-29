@@ -2,16 +2,16 @@ import { useState, useEffect, useRef } from 'react'
 import Layout from '../../components/Layout'
 import { getClients, getMarketplaces, importProducts } from '../../api'
 
-const adminNavItems = [
-  { to: '/admin', label: 'Dashboard' },
-  { to: '/admin/import', label: 'Import' },
-  { to: '/admin/locations', label: 'Locations' },
-  { to: '/admin/products', label: 'Products' },
-  { to: '/admin/users', label: 'Users' },
-  { to: '/admin/returns', label: 'Returns' }
+const managerNavItems = [
+  { to: '/manager', label: 'Dashboard' },
+  { to: '/manager/import', label: 'Import' },
+  { to: '/manager/locations', label: 'Locations' },
+  { to: '/manager/products', label: 'Products' },
+  { to: '/manager/users', label: 'Users' },
+  { to: '/manager/returns', label: 'Returns' }
 ]
 
-export default function AdminImport() {
+export default function ManagerImport() {
   const fileInputRef = useRef(null)
   const [clients, setClients] = useState([])
   const [marketplaces, setMarketplaces] = useState([])
@@ -100,7 +100,7 @@ export default function AdminImport() {
   }
 
   return (
-    <Layout title="Import Products" backLink="/" navItems={adminNavItems}>
+    <Layout title="Import Products" backLink="/" navItems={managerNavItems}>
       <div className="max-w-2xl mx-auto">
         {/* Import Form */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">

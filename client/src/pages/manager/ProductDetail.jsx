@@ -3,13 +3,13 @@ import { useParams, Link } from 'react-router-dom'
 import Layout from '../../components/Layout'
 import { getProductDetail, getProductInventory, getProductHistory, updateProductObservations } from '../../api'
 
-const adminNavItems = [
-  { to: '/admin', label: 'Dashboard' },
-  { to: '/admin/import', label: 'Import' },
-  { to: '/admin/locations', label: 'Locations' },
-  { to: '/admin/products', label: 'Products' },
-  { to: '/admin/users', label: 'Users' },
-  { to: '/admin/returns', label: 'Returns' }
+const managerNavItems = [
+  { to: '/manager', label: 'Dashboard' },
+  { to: '/manager/import', label: 'Import' },
+  { to: '/manager/locations', label: 'Locations' },
+  { to: '/manager/products', label: 'Products' },
+  { to: '/manager/users', label: 'Users' },
+  { to: '/manager/returns', label: 'Returns' }
 ]
 
 const PLACEHOLDER_IMAGE = 'data:image/svg+xml,' + encodeURIComponent(`
@@ -20,7 +20,7 @@ const PLACEHOLDER_IMAGE = 'data:image/svg+xml,' + encodeURIComponent(`
   </svg>
 `)
 
-export default function AdminProductDetail() {
+export default function ManagerProductDetail() {
   const { id } = useParams()
   const [product, setProduct] = useState(null)
   const [inventory, setInventory] = useState([])
@@ -149,7 +149,7 @@ export default function AdminProductDetail() {
 
   if (loading) {
     return (
-      <Layout title="Product Detail" backLink="/admin/products" navItems={adminNavItems}>
+      <Layout title="Product Detail" backLink="/admin/products" navItems={managerNavItems}>
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-2 text-gray-500">Loading product...</p>
@@ -160,7 +160,7 @@ export default function AdminProductDetail() {
 
   if (error && !product) {
     return (
-      <Layout title="Product Detail" backLink="/admin/products" navItems={adminNavItems}>
+      <Layout title="Product Detail" backLink="/admin/products" navItems={managerNavItems}>
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
           {error}
         </div>
@@ -171,7 +171,7 @@ export default function AdminProductDetail() {
   const displayImage = getDisplayImage()
 
   return (
-    <Layout title="Product Detail" backLink="/admin/products" navItems={adminNavItems}>
+    <Layout title="Product Detail" backLink="/admin/products" navItems={managerNavItems}>
       {success && (
         <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
           {success}

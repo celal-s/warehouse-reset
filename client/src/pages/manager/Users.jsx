@@ -2,16 +2,16 @@ import { useState, useEffect } from 'react'
 import Layout from '../../components/Layout'
 import { getUsers, createUser, updateUser, resetUserPassword, deleteUser, getClients } from '../../api'
 
-const adminNavItems = [
-  { to: '/admin', label: 'Dashboard' },
-  { to: '/admin/import', label: 'Import' },
-  { to: '/admin/locations', label: 'Locations' },
-  { to: '/admin/products', label: 'Products' },
-  { to: '/admin/users', label: 'Users' },
-  { to: '/admin/returns', label: 'Returns' }
+const managerNavItems = [
+  { to: '/manager', label: 'Dashboard' },
+  { to: '/manager/import', label: 'Import' },
+  { to: '/manager/locations', label: 'Locations' },
+  { to: '/manager/products', label: 'Products' },
+  { to: '/manager/users', label: 'Users' },
+  { to: '/manager/returns', label: 'Returns' }
 ]
 
-export default function AdminUsers() {
+export default function ManagerUsers() {
   const [users, setUsers] = useState([])
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
@@ -170,7 +170,7 @@ export default function AdminUsers() {
   }
 
   return (
-    <Layout title="User Management" backLink="/admin" navItems={adminNavItems}>
+    <Layout title="User Management" backLink="/admin" navItems={managerNavItems}>
       {/* Success message */}
       {success && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">

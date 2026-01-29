@@ -12,17 +12,30 @@ import ClientInventory from './pages/client/Inventory'
 import ClientItemDetail from './pages/client/ItemDetail'
 import ClientProducts from './pages/client/Products'
 import ClientProductDetail from './pages/client/ProductDetail'
+
+// Manager Pages (warehouse operations)
+import ManagerDashboard from './pages/manager/Dashboard'
+import ManagerImport from './pages/manager/Import'
+import ManagerLocations from './pages/manager/Locations'
+import ManagerProducts from './pages/manager/Products'
+import ManagerProductDetail from './pages/manager/ProductDetail'
+import ManagerProductNew from './pages/manager/ProductNew'
+import ManagerUsers from './pages/manager/Users'
+import ManagerReturns from './pages/manager/Returns'
+import ManagerReturnDetail from './pages/manager/ReturnDetail'
+import ManagerReturnImport from './pages/manager/ReturnImport'
+import ManagerUnmatchedReturns from './pages/manager/UnmatchedReturns'
+
+// System Admin Pages (developer only)
 import AdminDashboard from './pages/admin/Dashboard'
-import AdminImport from './pages/admin/Import'
-import AdminLocations from './pages/admin/Locations'
-import AdminProducts from './pages/admin/Products'
-import AdminProductDetail from './pages/admin/ProductDetail'
-import AdminProductNew from './pages/admin/ProductNew'
-import AdminUsers from './pages/admin/Users'
-import AdminReturns from './pages/admin/Returns'
-import AdminReturnDetail from './pages/admin/ReturnDetail'
-import AdminReturnImport from './pages/admin/ReturnImport'
-import AdminUnmatchedReturns from './pages/admin/UnmatchedReturns'
+import AdminSystem from './pages/admin/System'
+import AdminStatistics from './pages/admin/Statistics'
+import AdminSchema from './pages/admin/Schema'
+import AdminDbBrowser from './pages/admin/DbBrowser'
+import AdminDbBrowserTable from './pages/admin/DbBrowserTable'
+import AdminDbBrowserRecord from './pages/admin/DbBrowserRecord'
+import AdminNavigation from './pages/admin/Navigation'
+import AdminApiDocs from './pages/admin/ApiDocs'
 
 // Components
 import ProtectedRoute from './components/ProtectedRoute'
@@ -40,17 +53,17 @@ function App() {
 
           {/* Employee Routes */}
           <Route path="/employee/scan" element={
-            <ProtectedRoute allowedRoles={['admin', 'employee']}>
+            <ProtectedRoute allowedRoles={['manager', 'admin', 'employee']}>
               <EmployeeScan />
             </ProtectedRoute>
           } />
           <Route path="/employee/sort" element={
-            <ProtectedRoute allowedRoles={['admin', 'employee']}>
+            <ProtectedRoute allowedRoles={['manager', 'admin', 'employee']}>
               <EmployeeSort />
             </ProtectedRoute>
           } />
           <Route path="/employee/returns" element={
-            <ProtectedRoute allowedRoles={['admin', 'employee']}>
+            <ProtectedRoute allowedRoles={['manager', 'admin', 'employee']}>
               <EmployeeReturns />
             </ProtectedRoute>
           } />
@@ -82,60 +95,107 @@ function App() {
             </ProtectedRoute>
           } />
 
-          {/* Admin Routes */}
+          {/* Manager Routes (warehouse operations - manager and admin) */}
+          <Route path="/manager" element={
+            <ProtectedRoute allowedRoles={['manager', 'admin']}>
+              <ManagerDashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/manager/import" element={
+            <ProtectedRoute allowedRoles={['manager', 'admin']}>
+              <ManagerImport />
+            </ProtectedRoute>
+          } />
+          <Route path="/manager/locations" element={
+            <ProtectedRoute allowedRoles={['manager', 'admin']}>
+              <ManagerLocations />
+            </ProtectedRoute>
+          } />
+          <Route path="/manager/products" element={
+            <ProtectedRoute allowedRoles={['manager', 'admin']}>
+              <ManagerProducts />
+            </ProtectedRoute>
+          } />
+          <Route path="/manager/products/new" element={
+            <ProtectedRoute allowedRoles={['manager', 'admin']}>
+              <ManagerProductNew />
+            </ProtectedRoute>
+          } />
+          <Route path="/manager/products/:id" element={
+            <ProtectedRoute allowedRoles={['manager', 'admin']}>
+              <ManagerProductDetail />
+            </ProtectedRoute>
+          } />
+          <Route path="/manager/users" element={
+            <ProtectedRoute allowedRoles={['manager', 'admin']}>
+              <ManagerUsers />
+            </ProtectedRoute>
+          } />
+          <Route path="/manager/returns" element={
+            <ProtectedRoute allowedRoles={['manager', 'admin']}>
+              <ManagerReturns />
+            </ProtectedRoute>
+          } />
+          <Route path="/manager/returns/import" element={
+            <ProtectedRoute allowedRoles={['manager', 'admin']}>
+              <ManagerReturnImport />
+            </ProtectedRoute>
+          } />
+          <Route path="/manager/returns/unmatched" element={
+            <ProtectedRoute allowedRoles={['manager', 'admin']}>
+              <ManagerUnmatchedReturns />
+            </ProtectedRoute>
+          } />
+          <Route path="/manager/returns/:id" element={
+            <ProtectedRoute allowedRoles={['manager', 'admin']}>
+              <ManagerReturnDetail />
+            </ProtectedRoute>
+          } />
+
+          {/* System Admin Routes (admin only - developer tools) */}
           <Route path="/admin" element={
             <ProtectedRoute allowedRoles={['admin']}>
               <AdminDashboard />
             </ProtectedRoute>
           } />
-          <Route path="/admin/import" element={
+          <Route path="/admin/system" element={
             <ProtectedRoute allowedRoles={['admin']}>
-              <AdminImport />
+              <AdminSystem />
             </ProtectedRoute>
           } />
-          <Route path="/admin/locations" element={
+          <Route path="/admin/statistics" element={
             <ProtectedRoute allowedRoles={['admin']}>
-              <AdminLocations />
+              <AdminStatistics />
             </ProtectedRoute>
           } />
-          <Route path="/admin/products" element={
+          <Route path="/admin/schema" element={
             <ProtectedRoute allowedRoles={['admin']}>
-              <AdminProducts />
+              <AdminSchema />
             </ProtectedRoute>
           } />
-          <Route path="/admin/products/new" element={
+          <Route path="/admin/db-browser" element={
             <ProtectedRoute allowedRoles={['admin']}>
-              <AdminProductNew />
+              <AdminDbBrowser />
             </ProtectedRoute>
           } />
-          <Route path="/admin/products/:id" element={
+          <Route path="/admin/db-browser/:table" element={
             <ProtectedRoute allowedRoles={['admin']}>
-              <AdminProductDetail />
+              <AdminDbBrowserTable />
             </ProtectedRoute>
           } />
-          <Route path="/admin/users" element={
+          <Route path="/admin/db-browser/:table/:id" element={
             <ProtectedRoute allowedRoles={['admin']}>
-              <AdminUsers />
+              <AdminDbBrowserRecord />
             </ProtectedRoute>
           } />
-          <Route path="/admin/returns" element={
+          <Route path="/admin/navigation" element={
             <ProtectedRoute allowedRoles={['admin']}>
-              <AdminReturns />
+              <AdminNavigation />
             </ProtectedRoute>
           } />
-          <Route path="/admin/returns/import" element={
+          <Route path="/admin/api-docs" element={
             <ProtectedRoute allowedRoles={['admin']}>
-              <AdminReturnImport />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/returns/unmatched" element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <AdminUnmatchedReturns />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/returns/:id" element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <AdminReturnDetail />
+              <AdminApiDocs />
             </ProtectedRoute>
           } />
 

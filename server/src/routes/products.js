@@ -183,7 +183,7 @@ router.get('/:id/detail', authenticate, async (req, res, next) => {
 });
 
 // Update warehouse observations
-router.patch('/:id/observations', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
+router.patch('/:id/observations', authenticate, authorize('manager', 'admin', 'employee'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { notes, condition } = req.body;
@@ -237,7 +237,7 @@ router.patch('/:id/observations', authenticate, authorize('admin', 'employee'), 
 });
 
 // Create a new product
-router.post('/', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
+router.post('/', authenticate, authorize('manager', 'admin', 'employee'), async (req, res, next) => {
   try {
     const { upc, title } = req.body;
 
@@ -257,7 +257,7 @@ router.post('/', authenticate, authorize('admin', 'employee'), async (req, res, 
 });
 
 // Add photo to product
-router.post('/:id/photos', authenticate, authorize('admin', 'employee'), async (req, res, next) => {
+router.post('/:id/photos', authenticate, authorize('manager', 'admin', 'employee'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { photo_url, photo_type = 'main', photo_source = 'warehouse' } = req.body;

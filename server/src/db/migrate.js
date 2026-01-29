@@ -133,7 +133,7 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   name VARCHAR(255) NOT NULL,
-  role VARCHAR(50) NOT NULL CHECK (role IN ('admin', 'employee', 'client')),
+  role VARCHAR(50) NOT NULL CHECK (role IN ('admin', 'manager', 'employee', 'client')),
   client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -250,6 +250,19 @@ async function runMigrations() {
       CREATE INDEX IF NOT EXISTS idx_cpl_asin_client_marketplace
       ON client_product_listings (asin, client_id, marketplace_id)
       WHERE asin IS NOT NULL
+    `);
+
+    // Update role constraint to include 'manager' role
+    console.log('Updating role constraint...');
+    await pool.query(`
+      DO $$
+      BEGIN
+        ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+        ALTER TABLE users ADD CONSTRAINT users_role_check
+          CHECK (role IN ('admin', 'manager', 'employee', 'client'));
+      EXCEPTION WHEN OTHERS THEN
+        NULL;
+      END $$;
     `);
 
     console.log('All migrations completed successfully');

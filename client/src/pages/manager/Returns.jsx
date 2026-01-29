@@ -3,13 +3,13 @@ import { Link, useSearchParams } from 'react-router-dom'
 import Layout from '../../components/Layout'
 import { getReturns, completeReturn } from '../../api'
 
-const adminNavItems = [
-  { to: '/admin', label: 'Dashboard' },
-  { to: '/admin/import', label: 'Import' },
-  { to: '/admin/locations', label: 'Locations' },
-  { to: '/admin/products', label: 'Products' },
-  { to: '/admin/users', label: 'Users' },
-  { to: '/admin/returns', label: 'Returns' }
+const managerNavItems = [
+  { to: '/manager', label: 'Dashboard' },
+  { to: '/manager/import', label: 'Import' },
+  { to: '/manager/locations', label: 'Locations' },
+  { to: '/manager/products', label: 'Products' },
+  { to: '/manager/users', label: 'Users' },
+  { to: '/manager/returns', label: 'Returns' }
 ]
 
 const statusColors = {
@@ -54,7 +54,7 @@ const getUrgencyRowClass = (returnItem) => {
   return ''
 }
 
-export default function AdminReturns() {
+export default function ManagerReturns() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [returns, setReturns] = useState([])
   const [loading, setLoading] = useState(true)
@@ -146,13 +146,13 @@ export default function AdminReturns() {
   }
 
   return (
-    <Layout title="Returns Management" backLink="/" navItems={adminNavItems}>
+    <Layout title="Returns Management" backLink="/" navItems={managerNavItems}>
       {/* Header with Actions */}
       <div className="mb-6 flex flex-wrap justify-between items-center gap-4">
         <h2 className="text-lg font-medium text-gray-900">All Returns</h2>
         <div className="flex gap-2">
           <Link
-            to="/admin/returns/import"
+            to="/manager/returns/import"
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -161,7 +161,7 @@ export default function AdminReturns() {
             Import Labels
           </Link>
           <Link
-            to="/admin/returns/unmatched"
+            to="/manager/returns/unmatched"
             className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

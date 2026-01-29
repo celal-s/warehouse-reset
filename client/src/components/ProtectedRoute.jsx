@@ -28,6 +28,8 @@ export default function ProtectedRoute({ children, allowedRoles }) {
     switch (user.role) {
       case 'admin':
         return <Navigate to="/admin" replace />
+      case 'manager':
+        return <Navigate to="/manager" replace />
       case 'employee':
         return <Navigate to="/employee/scan" replace />
       case 'client':

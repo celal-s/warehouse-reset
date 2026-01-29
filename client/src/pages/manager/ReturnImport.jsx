@@ -3,13 +3,13 @@ import { Link } from 'react-router-dom'
 import Layout from '../../components/Layout'
 import { importReturnBacklog } from '../../api'
 
-const adminNavItems = [
-  { to: '/admin', label: 'Dashboard' },
-  { to: '/admin/import', label: 'Import' },
-  { to: '/admin/locations', label: 'Locations' },
-  { to: '/admin/products', label: 'Products' },
-  { to: '/admin/users', label: 'Users' },
-  { to: '/admin/returns', label: 'Returns' }
+const managerNavItems = [
+  { to: '/manager', label: 'Dashboard' },
+  { to: '/manager/import', label: 'Import' },
+  { to: '/manager/locations', label: 'Locations' },
+  { to: '/manager/products', label: 'Products' },
+  { to: '/manager/users', label: 'Users' },
+  { to: '/manager/returns', label: 'Returns' }
 ]
 
 export default function ReturnImport() {
@@ -101,7 +101,7 @@ export default function ReturnImport() {
   }
 
   return (
-    <Layout title="Import Return Labels" backLink="/admin/returns" navItems={adminNavItems}>
+    <Layout title="Import Return Labels" backLink="/admin/returns" navItems={managerNavItems}>
       <div className="max-w-2xl mx-auto">
         {/* Import Form */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
@@ -292,7 +292,7 @@ export default function ReturnImport() {
 
             {/* Link to view returns */}
             <Link
-              to="/admin/returns"
+              to="/manager/returns"
               className="block w-full py-3 px-4 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors text-center"
             >
               View All Returns
