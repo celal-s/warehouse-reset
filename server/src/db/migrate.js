@@ -255,13 +255,32 @@ async function runMigrations() {
       WHERE asin IS NOT NULL
     `);
 
+    // Explicitly add listing_id column (critical for marketplace differentiation)
+    console.log('Adding listing_id column to inventory_items...');
+    try {
+      await pool.query(`
+        ALTER TABLE inventory_items
+        ADD COLUMN IF NOT EXISTS listing_id INTEGER
+        REFERENCES client_product_listings(id) ON DELETE SET NULL
+      `);
+      console.log('  - listing_id column added/verified');
+    } catch (err) {
+      if (!err.message.includes('already exists')) {
+        console.error('  - listing_id column error:', err.message);
+      }
+    }
+
     // Add index for listing_id lookups
     console.log('Adding index for inventory_items.listing_id...');
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_inventory_items_listing
-      ON inventory_items (listing_id)
-      WHERE listing_id IS NOT NULL
-    `);
+    try {
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_inventory_items_listing
+        ON inventory_items (listing_id)
+        WHERE listing_id IS NOT NULL
+      `);
+    } catch (err) {
+      console.warn('  - listing_id index warning:', err.message);
+    }
 
     // Backfill listing_id for existing inventory where unambiguous (single listing per product+client)
     console.log('Backfilling listing_id for existing inventory...');
