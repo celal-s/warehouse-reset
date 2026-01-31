@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 16px;
+        font-size: 16px;
+      }
+      .section {
+        margin-bottom: 24px;
+      }
+      h3 {
+        font-size: 22px;
+        margin-bottom: 16px;
+        color: #1a73e8;
+      }
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+        font-size: 16px;
+      }
+      input, textarea, select {
+        width: 100%;
+        padding: 12px;
+        margin-bottom: 16px;
+        box-sizing: border-box;
+        font-size: 16px;
+        border: 2px solid #4285f4;
+        border-radius: 4px;
+      }
+      input[type="number"] {
+        font-size: 20px;
+        font-weight: bold;
+      }
+      button {
+        background-color: #4285f4;
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 18px;
+        border-radius: 4px;
+        width: 100%;
+        margin-bottom: 10px;
+      }
+      button:hover {
+        background-color: #2a75f3;
+      }
+      button:disabled {
+        background-color: #a6c3f5;
+        cursor: not-allowed;
+      }
+      .back-button {
+        background-color: #9e9e9e;
+      }
+      .submit-button {
+        background-color: #34A853;
+        font-size: 20px;
+        padding: 16px;
+      }
+      #searchResults {
+        margin-top: 24px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+        margin-bottom: 20px;
+      }
+      th, td {
+        border: 1px solid #ddd;
+        padding: 12px 8px;
+        text-align: left;
+      }
+      th {
+        background-color: #f2f2f2;
+        font-size: 15px;
+      }
+      .action-button {
+        background-color: #34A853;
+        padding: 8px 12px;
+        font-size: 14px;
+      }
+      .info-box {
+        background-color: #e8f0fe;
+        border: 1px solid #4285f4;
+        padding: 12px;
+        margin-bottom: 16px;
+        border-radius: 4px;
+      }
+      .info-box span {
+        font-weight: bold;
+      }
+      .two-column {
+        display: flex;
+        gap: 20px;
+      }
+      .column {
+        flex: 1;
+      }
+      .previous-entries {
+        margin-top: 20px;
+        max-height: 300px;
+        overflow-y: auto;
+      }
+      .warning {
+        background-color: #fff3cd;
+        border: 1px solid #ffeeba;
+        color: #856404;
+        padding: 12px;
+        margin-bottom: 16px;
+        border-radius: 4px;
+      }
+      .error {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+        padding: 12px;
+        margin-bottom: 16px;
+        border-radius: 4px;
+      }
+      .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(255, 255, 255, 0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+      }
+      .loading-spinner {
+        border: 8px solid #f3f3f3;
+        border-top: 8px solid #3498db;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      .marketplace {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-weight: bold;
+        margin-right: 10px;
+      }
+
+      .marketplace-AU {
+        background-color: #FFF59D;
+        color: #000;
+      }
+
+      .marketplace-UK {
+        background-color: #EF9A9A;
+        color: #000;
+      }
+
+      .marketplace-CA {
+        background-color: #90CAF9;
+        color: #000;
+      }
+
+      .marketplace-US {
+        background-color: #C8E6C9;
+        color: #000;
+      }
+
+      .bundle-info {
+        background-color: #F5F5F5;
+        border: 1px solid #E0E0E0;
+        padding: 12px;
+        margin-top: 12px;
+        border-radius: 4px;
+      }
+
+      .radio-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        margin-bottom: 16px;
+        padding: 12px;
+        background-color: #f8f9fa;
+        border: 2px solid #4285f4;
+        border-radius: 4px;
+      }
+
+      .radio-option {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        padding: 8px 12px;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+        min-width: 120px;
+      }
+
+      .radio-option:hover {
+        background-color: #e3f2fd;
+      }
+
+      .radio-option input[type="radio"] {
+        width: auto;
+        margin-right: 8px;
+        margin-bottom: 0;
+        cursor: pointer;
+      }
+
+      .radio-option label {
+        margin-bottom: 0;
+        cursor: pointer;
+        font-weight: normal;
+        font-size: 16px;
+      }
+
+      .radio-option input[type="radio"]:checked + label {
+        font-weight: bold;
+        color: #1a73e8;
+      }
+
+      @media (max-width: 768px) {
+        .radio-group {
+          gap: 12px;
+        }
+        
+        .radio-option {
+          min-width: 100px;
+          padding: 6px 10px;
+        }
+        
+        .radio-option label {
+          font-size: 14px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+      <div class="loading-spinner"></div>
+    </div>
+    
+    <div id="searchSection" class="section">
+      <h3>go!</h3>
+      
+      <label>Client:</label>
+      <div id="clientRadioGroup" class="radio-group">
+        <div style="color: #666; font-style: italic;">Loading clients...</div>
+      </div>
+      
+      <label for="searchTerm">Search:</label>
+      <input type="text" id="searchTerm" placeholder="Product, PO#, Order ID">
+      
+      <button id="searchButton" onclick="searchOrders()" disabled>SEARCH</button>
+    </div>
+    
+    <div id="searchResults">
+      <!-- Search results will be displayed here -->
+    </div>
+    
+    <div id="receivingForm" style="display:none;">
+      <!-- Receiving form will be displayed here -->
+    </div>
+    
+    <script>
+      // Global variables
+      let clientsLoaded = false;
+
+      // Helper function to escape HTML (prevent XSS)
+      function escapeHtml(unsafe) {
+        if (unsafe === undefined || unsafe === null) {
+          return "";
+        }
+        
+        unsafe = String(unsafe);
+        
+        return unsafe
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+      
+      // Show loading overlay
+      function showLoading() {
+        document.getElementById('loadingOverlay').style.display = 'flex';
+      }
+      
+      // Hide loading overlay
+      function hideLoading() {
+        document.getElementById('loadingOverlay').style.display = 'none';
+      }
+
+      // Load clients and create radio buttons
+      function loadClients() {
+        if (clientsLoaded) return;
+
+        const radioGroup = document.getElementById('clientRadioGroup');
+        radioGroup.innerHTML = '<div style="color: #666; font-style: italic;">Loading clients...</div>';
+        
+        google.script.run
+          .withSuccessHandler(function(clients) {
+            if (!clients || clients.length === 0) {
+              radioGroup.innerHTML = '<div style="color: #666; font-style: italic;">No clients found</div>';
+              return;
+            }
+            
+            // Clear container and create radio buttons
+            radioGroup.innerHTML = '';
+            
+            for (let i = 0; i < clients.length; i++) {
+              const client = clients[i];
+              
+              // SECURITY FIX: Validate client data
+              if (!client.id || !client.name) {
+                console.warn('Invalid client data:', client);
+                continue;
+              }
+              
+              // Create radio option container
+              const radioOption = document.createElement('div');
+              radioOption.className = 'radio-option';
+              
+              // Create radio input
+              const radioInput = document.createElement('input');
+              radioInput.type = 'radio';
+              radioInput.name = 'clientRadio';
+              radioInput.value = escapeHtml(client.id.toString()); // SECURITY FIX: Escape value
+              radioInput.id = 'client_' + escapeHtml(client.id.toString().replace(/[^a-zA-Z0-9]/g, '_')); // SECURITY FIX: Sanitize ID
+              radioInput.addEventListener('change', function() {
+                if (this.checked) {
+                  selectClient(this.value);
+                }
+              });
+              
+              // Create label - SECURITY FIX: Use textContent instead of innerHTML
+              const radioLabel = document.createElement('label');
+              radioLabel.htmlFor = radioInput.id;
+              radioLabel.textContent = client.id + ' - ' + client.name; // textContent auto-escapes
+              
+              // Append to option container
+              radioOption.appendChild(radioInput);
+              radioOption.appendChild(radioLabel);
+              
+              // Append to radio group
+              radioGroup.appendChild(radioOption);
+            }
+            
+            clientsLoaded = true;
+            console.log('Loaded', clients.length, 'client radio buttons');
+          })
+          .withFailureHandler(function(error) {
+            console.error('Error loading clients:', error);
+            radioGroup.innerHTML = '<div style="color: #d32f2f; font-style: italic;">Error loading clients: ' + escapeHtml(error.message || 'Unknown error') + '</div>';
+          })
+          .getClientList();
+      }
+
+      // Handle client selection from radio buttons
+      function selectClient(clientId) {
+        console.log('Selected client:', clientId);
+        
+        // Enable search button only if we also have a valid search term
+        const searchTerm = document.getElementById('searchTerm').value;
+        const searchButton = document.getElementById('searchButton');
+        
+        // Check if search should be enabled (client selected AND search term >= 2 chars)
+        const canSearch = clientId && searchTerm && searchTerm.trim().length >= 2;
+        searchButton.disabled = !canSearch;
+      }
+
+      // ADDED: Update search button state when typing
+      function updateSearchButtonState() {
+        const searchTerm = document.getElementById('searchTerm').value;
+        const clientId = getSelectedClientId();
+        const searchButton = document.getElementById('searchButton');
+        
+        // Enable only if both client selected AND search term >= 2 chars
+        const canSearch = clientId && searchTerm && searchTerm.trim().length >= 2;
+        searchButton.disabled = !canSearch;
+      }
+
+      // Get selected client ID
+      function getSelectedClientId() {
+        const checkedRadio = document.querySelector('input[name="clientRadio"]:checked');
+        return checkedRadio ? checkedRadio.value : null;
+      }
+
+      // Search function
+      function searchOrders() {
+        const searchTerm = document.getElementById('searchTerm').value;
+        const clientId = getSelectedClientId();
+        
+        if (!searchTerm || searchTerm.trim().length < 2) {
+          document.getElementById('searchResults').innerHTML = 
+            '<div class="warning">Please enter at least 2 characters to search.</div>';
+          return;
+        }
+
+        if (!clientId) {
+          document.getElementById('searchResults').innerHTML = 
+            '<div class="warning">Please select a client first.</div>';
+          return;
+        }
+        
+        // Disable search button and show loading
+        const searchButton = document.getElementById('searchButton');
+        searchButton.disabled = true;
+        searchButton.textContent = 'Searching...';
+        
+        showLoading();
+        document.getElementById('searchResults').innerHTML = '<p>Searching...</p>';
+        
+        google.script.run
+          .withSuccessHandler(function(results) {
+            displaySearchResults(results);
+            searchButton.disabled = !clientId;
+            searchButton.textContent = 'SEARCH';
+            hideLoading();
+          })
+          .withFailureHandler(function(error) {
+            showError(error);
+            searchButton.disabled = !clientId;
+            searchButton.textContent = 'SEARCH';
+            hideLoading();
+          })
+          .searchSingleClientOrders(searchTerm, clientId);
+      }
+      
+      function displaySearchResults(results) {
+        const resultsDiv = document.getElementById('searchResults');
+        
+        if (!results || results.length === 0) {
+          resultsDiv.innerHTML = '<div class="info-box">No incomplete orders found matching your search.</div>';
+          return;
+        }
+        
+        let html = '<h3>Search Results (' + results.length + ')</h3>' +
+                  '<table>' +
+                  '<tr>' +
+                  '<th>Client</th>' +
+                  '<th>PO Number</th>' +
+                  '<th>Vendor</th>' +
+                  '<th>Product</th>' +
+                  '<th>Status</th>' +
+                  '<th>Action</th>' +
+                  '</tr>';
+        
+        for (let i = 0; i < results.length; i++) {
+          const row = results[i];
+          
+          const clientId = escapeHtml(row.clientId || '');
+          const clientName = escapeHtml(row.clientName || clientId);
+          const poNumber = escapeHtml(row.poNumber || '');
+          const vendor = escapeHtml(row.vendor || '');
+          const productTitle = escapeHtml(row.productTitle || '');
+          const status = escapeHtml(row.status || '');
+          const woLineId = escapeHtml(row.woLineId || '');
+          const rowIndex = row.rowIndex || 0;
+          
+          html += '<tr>' +
+                  '<td>' + clientId + ' - ' + clientName + '</td>' +
+                  '<td>' + poNumber + '</td>' +
+                  '<td>' + vendor + '</td>' +
+                  '<td>' + productTitle + '</td>' +
+                  '<td>' + status + '</td>' +
+                  '<td><button class="action-button" onclick="selectOrder(\'' + 
+                    woLineId + '\',\'' + 
+                    clientId + '\',' + 
+                    rowIndex + ')">Select</button></td>' +
+                '</tr>';
+        }
+                
+        html += '</table>';
+        resultsDiv.innerHTML = html;
+      }
+      
+      // Handle errors
+      function showError(error) {
+        hideLoading();
+        const errorMessage = error.message || error.toString();
+        document.getElementById('searchResults').innerHTML = 
+          '<div class="error">Error: ' + escapeHtml(errorMessage) + '</div>';
+      }
+      
+      // Select an order for receiving
+      function selectOrder(woLineId, clientId, rowIndex, retryCount = 0) {
+        if (!woLineId || !clientId || !rowIndex) {
+          showError({message: "Missing order information. Please try searching again."});
+          return;
+        }
+        
+        showLoading();
+        
+        document.getElementById('searchSection').style.display = 'none';
+        document.getElementById('searchResults').style.display = 'none';
+        const receivingDiv = document.getElementById('receivingForm');
+        receivingDiv.style.display = 'block';
+        
+        receivingDiv.innerHTML = '<p>Loading order details...</p>';
+        
+        const MAX_RETRIES = 2;
+        
+        google.script.run
+          .withSuccessHandler(function(data) {
+            if (!data) {
+              if (retryCount < MAX_RETRIES) {
+                receivingDiv.innerHTML = '<p>Retrying... Attempt ' + (retryCount + 2) + ' of ' + (MAX_RETRIES + 1) + '</p>';
+                setTimeout(function() {
+                  selectOrder(woLineId, clientId, rowIndex, retryCount + 1);
+                }, 2000);
+              } else {
+                receivingDiv.innerHTML = '<div class="error">No data returned from server after multiple attempts. Please try again later.</div>' +
+                                    '<button onclick="backToSearch()">Back to Search</button>';
+                hideLoading();
+              }
+            } else {
+              try {
+                showReceivingForm(data);
+                hideLoading();
+              } catch (e) {
+                console.error("Error processing returned data:", e);
+                receivingDiv.innerHTML = '<div class="error">Error processing data: ' + escapeHtml(e.message) + '</div>' +
+                                    '<button onclick="backToSearch()">Back to Search</button>';
+                hideLoading();
+              }
+            }
+          })
+          .withFailureHandler(function(error) {
+            console.error("Server error:", error);
+            if (retryCount < MAX_RETRIES) {
+              receivingDiv.innerHTML = '<p>Error occurred, retrying... Attempt ' + (retryCount + 2) + ' of ' + (MAX_RETRIES + 1) + '</p>';
+              setTimeout(function() {
+                selectOrder(woLineId, clientId, rowIndex, retryCount + 1);
+              }, 2000);
+            } else {
+              receivingDiv.innerHTML = '<div class="error">Error after multiple attempts: ' + escapeHtml(error.message || "Could not load order details") + '</div>' +
+                                  '<button onclick="backToSearch()">Back to Search</button>';
+              hideLoading();
+            }
+          })
+          .getOrderDetailsForClient(woLineId.toString(), clientId.toString(), parseInt(rowIndex));
+      }
+      
+      // Back to search function
+      function backToSearch() {
+        document.getElementById('receivingForm').style.display = 'none';
+        document.getElementById('searchSection').style.display = 'block';
+        document.getElementById('searchResults').style.display = 'block';
+      }
+      
+      // Display the receiving form with order details
+      function showReceivingForm(data) {
+        // Get user info
+        google.script.run
+          .withSuccessHandler(function(userInfo) {
+            document.getElementById('receiver').value = userInfo.email;
+          })
+          .getCurrentUserInfo();
+
+        if (!data || !data.orderDetails) {
+          document.getElementById('receivingForm').innerHTML =
+            '<div class="error">Order details missing from server response.</div>' +
+            '<button onclick="backToSearch()">Back to Search</button>';
+          return;
+        }
+
+        const order = data.orderDetails;
+        const previousEntries = data.previousEntries || [];
+        const totalReceived = data.totalReceived || 0;
+        const totalDamaged = data.totalDamaged || 0;
+        
+        const marketplace = order.selling_marketplace || 'Unknown';
+        const marketplaceClass = 'marketplace-' + marketplace;
+        
+        const purchaseBundleCount = Number(order.purchase_bundle_count || 1);
+        const sellingBundleCount = Number(order.selling_marketplace_bundle_count || 1);
+        const purchaseOrderQty = Number(order.purchase_order_quantity || 0);
+        
+        const orderedUnits = Number(order.purchase_order_quantity_single_units || 0);
+        const totalExpectedSingles = purchaseBundleCount * purchaseOrderQty;
+        const remainingUnits = Math.max(0, orderedUnits - totalReceived - totalDamaged);
+
+        const marketplaceFlags = {
+          'US': '🇺🇸',
+          'UK': '🇬🇧',
+          'CA': '🇨🇦',
+          'AU': '🇦🇺'
+        };
+        const flag = marketplaceFlags[marketplace] || '';
+        
+        let html = '<h3>Receiving Form</h3>';
+        
+        html += '<div class="info-box" style="margin-bottom: 10px;">' +
+                '<div style="display: flex; justify-content: space-between;">' +
+                '<div><span style="font-weight: bold;">WO Line ID:</span> ' + escapeHtml(order.warehouse_order_line_ID || '') + '</div>' +
+                '<div><span style="font-weight: bold;">Client:</span> ' + escapeHtml(order.clientId || '') + '</div>' +
+                '</div>';
+
+        html += '<div style="display: flex; justify-content: space-between; margin-top: 8px;">' +
+                '<div><span style="font-weight: bold;">PO Number:</span> ' + escapeHtml(order.purchase_order_no || '') + '</div>' +
+                '<div><span style="font-weight: bold;">Marketplace:</span> ' +
+                '<span class="marketplace ' + marketplaceClass + '">' + flag + ' ' + marketplace + '</span></div>' +
+                '</div>' +
+                '</div>';
+        
+        html += '<div class="info-box" style="margin-bottom: 10px; background-color: #e3f2fd; border: 2px solid #90caf9;">' +
+                '<div style="font-size: 18px; font-weight: bold; margin-bottom: 5px;">Product:</div>' +
+                '<div style="font-size: 16px;">' + escapeHtml(order.selling_marketplace_product_title || '') + '</div>' +
+                '<div style="margin-top: 8px;"><span style="font-weight: bold;">Vendor:</span> ' + escapeHtml(order.vendor || '') + '</div>';
+        
+        // Add ASIN with marketplace-specific Amazon link
+        if (order.selling_marketplace_ASIN && order.selling_marketplace_ASIN.toString().trim() !== '') {
+          const asin = order.selling_marketplace_ASIN.toString().trim();
+          let amazonUrl = '';
+          let amazonSite = '';
+          
+          // Determine Amazon URL based on marketplace
+          switch (marketplace) {
+            case 'CA':
+              amazonUrl = 'https://amazon.ca/dp/' + encodeURIComponent(asin);
+              amazonSite = 'Amazon.ca';
+              break;
+            case 'UK':
+              amazonUrl = 'https://amazon.co.uk/dp/' + encodeURIComponent(asin);
+              amazonSite = 'Amazon.co.uk';
+              break;
+            case 'UK FBA':
+              amazonUrl = 'https://amazon.co.uk/dp/' + encodeURIComponent(asin);
+              amazonSite = 'Amazon.co.uk';
+              break;
+            case 'US':
+              amazonUrl = 'https://amazon.com/dp/' + encodeURIComponent(asin);
+              amazonSite = 'Amazon.com';
+              break;
+            case 'AU':
+              amazonUrl = 'https://amazon.com.au/dp/' + encodeURIComponent(asin);
+              amazonSite = 'Amazon.com.au';
+              break;
+            default:
+              amazonUrl = 'https://amazon.com/dp/' + encodeURIComponent(asin);
+              amazonSite = 'Amazon.com';
+          }
+          
+          html += '<div style="margin-top: 8px;">' +
+                  '<span style="font-weight: bold;">ASIN:</span> ' +
+                  '<a href="' + amazonUrl + '" target="_blank" style="color: #1a73e8; text-decoration: none; font-weight: bold;">' +
+                  escapeHtml(asin) + '</a> ' +
+                  '<span style="color: #666; font-size: 12px;">(' + amazonSite + ' 🔗)</span>' +
+                  '</div>';
+        }
+        
+        // Add notes_to_warehouse if it exists
+        if (order.notes_to_warehouse && order.notes_to_warehouse.toString().trim() !== '') {
+          html += '<div style="margin-top: 8px; padding: 8px; background-color: #fff3cd; border: 1px solid #ffeeba; border-radius: 4px;">' +
+                  '<span style="font-weight: bold; color: #856404;">📝 Warehouse Notes:</span><br>' +
+                  '<span style="color: #856404;">' + escapeHtml(order.notes_to_warehouse) + '</span>' +
+                  '</div>';
+        }
+        
+        html += '</div>';
+        
+        html += '<div class="info-box" style="margin-bottom: 10px;">' +
+                '<div style="display: flex; flex-wrap: wrap; gap: 10px;">' +
+                '<div style="flex: 1;">' +
+                '<h4 style="margin-top: 0; margin-bottom: 8px; color: #1a73e8;">Purchase Details</h4>' +
+                '<div><span style="font-weight: bold;">Purchase Bundle:</span> ' + purchaseBundleCount + ' units per bundle</div>' +
+                '<div><span style="font-weight: bold;">Purchase Quantity:</span> ' + purchaseOrderQty + ' bundles</div>' +
+                '<div><span style="font-weight: bold;">Total Expected Units:</span> ' + totalExpectedSingles + ' singles</div>' +
+                '</div>' +
+                
+                '<div style="flex: 1;">' +
+                '<h4 style="margin-top: 0; margin-bottom: 8px; color: #1a73e8;">Receiving Status</h4>' +
+                '<div><span style="font-weight: bold;">Previously Received:</span> ' + totalReceived + ' units (Good), ' + 
+                totalDamaged + ' units (Damaged)</div>' +
+                '<div><span style="font-weight: bold;">Remaining Units:</span> ' + remainingUnits + ' singles</div>' +
+                '<div><span style="font-weight: bold;">Selling Bundle:</span> ' + sellingBundleCount + ' units per sellable product</div>' +
+                '</div>' +
+                '</div>' +
+                '</div>';
+
+        // Form construction
+        html += '<form id="receivingEntryForm">';
+        
+        // Hidden fields
+        html += '<input type="hidden" name="warehouse_order_line_ID" value="' + escapeHtml(order.warehouse_order_line_ID || '') + '">' +
+                '<input type="hidden" name="purchase_order_no" value="' + escapeHtml(order.purchase_order_no || '') + '">' +
+                '<input type="hidden" name="vendor" value="' + escapeHtml(order.vendor || '') + '">' +
+                '<input type="hidden" name="selling_marketplace_product_title" value="' + escapeHtml(order.selling_marketplace_product_title || '') + '">' +
+                '<input type="hidden" name="hazmat" value="' + escapeHtml(order.is_hazmat || 'No') + '">' +
+                '<input type="hidden" name="client_code" value="' + escapeHtml(order.clientId || '') + '">' +
+                '<input type="hidden" name="sku" value="' + escapeHtml(order.selling_marketplace_client_SKU || '') + '">' +
+                '<input type="hidden" name="asin" value="' + escapeHtml(order.selling_marketplace_ASIN || '') + '">' +
+                '<input type="hidden" name="total_received" value="' + totalReceived + '">' +
+                '<input type="hidden" name="total_damaged" value="' + totalDamaged + '">' +
+                '<input type="hidden" name="purchase_order_quantity_single_units" value="' + orderedUnits + '">' +
+                '<input type="hidden" id="purchase_bundle_count" name="purchase_bundle_count" value="' + purchaseBundleCount + '">' +
+                '<input type="hidden" id="selling_marketplace_bundle_count" name="selling_marketplace_bundle_count" value="' + sellingBundleCount + '">' +
+                '<input type="hidden" name="selling_marketplace" value="' + marketplace + '">' +
+                '<input type="hidden" name="parcel_count" value="1">' +
+                '<input type="hidden" name="parcel_received" value="1">';
+        
+        // Unit inputs
+        html += '<div class="two-column">' +
+                '<div class="column">' +
+                '<label for="received_single_units_quantity">Good Units Received:</label>' +
+                '<input type="number" id="received_single_units_quantity" name="received_single_units_quantity" value="0" min="0" max="99999" required>' +
+                '</div>' +
+                '<div class="column">' +
+                '<label for="received_single_units_damaged_quantity">Damaged Units Received:</label>' +
+                '<input type="number" id="received_single_units_damaged_quantity" name="received_single_units_damaged_quantity" value="0" min="0" max="99999" required>' +
+                '</div>' +
+                '</div>';
+        
+        html += '<div class="info-box" style="background-color: #e8f5e9; border: 1px solid #81c784; margin-bottom: 16px;">' +
+                '<div style="display: flex; align-items: center;">' +
+                '<span style="font-weight: bold; margin-right: 10px;">Calculated Sellable Units:</span> ' +
+                '<span id="sellable_units_display" style="font-size: 18px; font-weight: bold;">0</span> ' +
+                '<span style="margin-left: 10px; color: #555;">(complete sellable products, each requiring ' + sellingBundleCount + ' units)</span>' +
+                '</div>' +
+                '</div>';
+        
+        html += '<label for="tracking_number">Tracking Number:</label>' +
+                '<input type="text" id="tracking_number" name="tracking_number" maxlength="100" required>';
+        
+        html += '<label for="notes">Notes:</label>' +
+                '<textarea id="notes" name="notes" rows="3" maxlength="500"></textarea>' +
+                
+                '<input type="hidden" id="receiver" name="receiver" value="">' +
+                
+                '<button type="button" id="submitButton" class="submit-button" onclick="submitForm()">SUBMIT RECEIVING</button>' +
+                '<button type="button" class="back-button" onclick="backToSearch()">Back to Search</button>' +
+                '</form>';
+        
+        // Previous entries section
+        if (previousEntries.length > 0) {
+          html += '<div class="previous-entries">' +
+                  '<h3>Previous Receiving Entries</h3>' +
+                  '<table>' +
+                  '<tr>' +
+                  '<th>Date</th>' +
+                  '<th>Good Units</th>' +
+                  '<th>Damaged Units</th>' +
+                  '<th>Receiver</th>' +
+                  '<th>Notes</th>' +
+                  '</tr>';
+          
+          for (let i = 0; i < previousEntries.length; i++) {
+            const entry = previousEntries[i];
+            const date = entry.receiving_date ? new Date(entry.receiving_date) : new Date();
+            const dateStr = date.toLocaleDateString();
+            
+            html += '<tr>' +
+                    '<td>' + dateStr + '</td>' +
+                    '<td>' + (entry.received_single_units_quantity || 0) + '</td>' +
+                    '<td>' + (entry.received_single_units_damaged_quantity || 0) + '</td>' +
+                    '<td>' + escapeHtml(entry.receiver || '') + '</td>' +
+                    '<td>' + escapeHtml(entry.notes || '') + '</td>' +
+                    '</tr>';
+          }
+          
+          html += '</table></div>';
+        }
+        
+        document.getElementById('receivingForm').innerHTML = html;
+        
+        setupFormValidation();
+      }
+
+      // Calculate sellable units
+      function calculateSellableUnits(singleUnits, purchaseBundleCount, sellingBundleCount) {
+        if (purchaseBundleCount <= 0) purchaseBundleCount = 1;
+        if (sellingBundleCount <= 0) sellingBundleCount = 1;
+        
+        return Math.floor(singleUnits / sellingBundleCount);
+      }
+      
+      // Set up form validation
+      function setupFormValidation() {
+        const goodUnitsInput = document.getElementById('received_single_units_quantity');
+        const damagedUnitsInput = document.getElementById('received_single_units_damaged_quantity');
+        const submitButton = document.getElementById('submitButton');
+        
+        function validateForm() {
+          const goodUnits = parseInt(goodUnitsInput.value) || 0;
+          const damagedUnits = parseInt(damagedUnitsInput.value) || 0;
+          
+          if (goodUnits === 0 && damagedUnits === 0) {
+            submitButton.disabled = true;
+          } else {
+            submitButton.disabled = false;
+          }
+        }
+
+        function updateSellableUnits() {
+          const goodUnits = parseInt(goodUnitsInput.value) || 0;
+          const purchaseBundleCount = Number(document.getElementById('purchase_bundle_count').value || 1);
+          const sellingBundleCount = Number(document.getElementById('selling_marketplace_bundle_count').value || 1);
+          
+          const sellableUnits = calculateSellableUnits(goodUnits, purchaseBundleCount, sellingBundleCount);
+          document.getElementById('sellable_units_display').textContent = sellableUnits;
+        }
+        
+        if (goodUnitsInput) {
+          goodUnitsInput.addEventListener('input', function() {
+            validateForm();
+            updateSellableUnits();
+          });
+        }
+        
+        if (damagedUnitsInput) {
+          damagedUnitsInput.addEventListener('input', validateForm);
+        }
+        
+        validateForm();
+        updateSellableUnits();
+      }
+
+      // Submit form
+      function submitForm() {
+        const form = document.getElementById('receivingEntryForm');
+        const goodUnits = parseInt(form.elements.received_single_units_quantity.value) || 0;
+        const damagedUnits = parseInt(form.elements.received_single_units_damaged_quantity.value) || 0;
+        
+        if (goodUnits === 0 && damagedUnits === 0) {
+          alert('Please enter at least some units received.');
+          return;
+        }
+        
+        if (!form.elements.receiver.value) {
+          alert('Please enter receiver name.');
+          return;
+        }
+        
+        // Collect form data
+        const formData = {};
+        for (let i = 0; i < form.elements.length; i++) {
+          const element = form.elements[i];
+          if (element.name) {
+            formData[element.name] = element.value;
+          }
+        }
+        
+        const submitButton = form.querySelector('.submit-button');
+        submitButton.disabled = true;
+        submitButton.textContent = 'Submitting...';
+        
+        showLoading();
+        
+        google.script.run
+          .withSuccessHandler(function(result) {
+            hideLoading();
+            if (result.success) {
+              let resultHtml = '<h3>Receiving Complete</h3>' +
+                        '<div class="info-box">' +
+                        '<p><strong>Receiving ID:</strong> ' + escapeHtml(result.receivingId || '') + '</p>' +
+                        '<p><strong>Status:</strong> ' + escapeHtml(result.status || '') + '</p>';
+              
+              if (result.warning) {
+                resultHtml += '<div class="warning">' + escapeHtml(result.warning) + '</div>';
+              }
+              
+              resultHtml += '</div>' +
+                        '<button onclick="backToSearch()">Back to Search</button>';
+              
+              document.getElementById('receivingForm').innerHTML = resultHtml;
+            } else {
+              alert('Error: ' + (result.message || "Unknown error"));
+              submitButton.disabled = false;
+              submitButton.textContent = 'SUBMIT RECEIVING';
+            }
+          })
+          .withFailureHandler(function(error) {
+            hideLoading();
+            alert('Error: ' + (error.message || "Unknown error"));
+            submitButton.disabled = false;
+            submitButton.textContent = 'SUBMIT RECEIVING';
+          })
+          .submitReceiving(formData);
+      }
+      
+      // Event listeners
+      document.addEventListener('DOMContentLoaded', function() {
+        // Load clients on page load
+        loadClients();
+        
+        // Set up search input listeners
+        const searchInput = document.getElementById('searchTerm');
+        if (searchInput) {
+          // Update button state as user types
+          searchInput.addEventListener('input', updateSearchButtonState);
+          
+          // Handle enter key
+          searchInput.addEventListener('keyup', function(event) {
+            if (event.key === 'Enter') {
+              searchOrders();
+            }
+          });
+        }
+      });
+    </script>
+  </body>
+</html>

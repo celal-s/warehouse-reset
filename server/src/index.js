@@ -11,6 +11,7 @@ const adminRoutes = require('./routes/admin');
 const uploadRoutes = require('./routes/upload');
 const authRoutes = require('./routes/auth');
 const returnsRoutes = require('./routes/returns');
+const warehouseOrderRoutes = require('./routes/warehouseOrders');
 const errorHandler = require('./middleware/errorHandler');
 const db = require('./db');
 
@@ -35,6 +36,8 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/returns', returnsRoutes);
+app.use('/api/clients', warehouseOrderRoutes.clientRoutes);
+app.use('/api/warehouse-orders', warehouseOrderRoutes.employeeRoutes);
 
 // Error handler
 app.use(errorHandler);
@@ -170,6 +173,107 @@ const runMigrations = async () => {
       CREATE INDEX IF NOT EXISTS idx_returns_inventory_item_id ON returns(inventory_item_id);
     `);
     console.log('  - returns table: indexes verified');
+
+    // Create warehouse_orders table if it doesn't exist
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS warehouse_orders (
+        id SERIAL PRIMARY KEY,
+        warehouse_order_line_id VARCHAR(50) UNIQUE NOT NULL,
+        client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+        warehouse_order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        purchase_order_date DATE,
+        purchase_order_no VARCHAR(100),
+        vendor VARCHAR(255),
+        marketplace_id INTEGER REFERENCES marketplaces(id),
+        sku VARCHAR(100),
+        asin VARCHAR(20),
+        fnsku VARCHAR(20),
+        product_title VARCHAR(500) NOT NULL,
+        product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
+        listing_id INTEGER REFERENCES client_product_listings(id) ON DELETE SET NULL,
+        is_hazmat BOOLEAN DEFAULT FALSE,
+        photo_link VARCHAR(500),
+        purchase_bundle_count INTEGER DEFAULT 1,
+        purchase_order_quantity INTEGER NOT NULL DEFAULT 0,
+        selling_bundle_count INTEGER DEFAULT 1,
+        expected_single_units INTEGER DEFAULT 0,
+        expected_sellable_units INTEGER DEFAULT 0,
+        total_cost DECIMAL(12,2),
+        unit_cost DECIMAL(10,2),
+        receiving_status VARCHAR(20) DEFAULT 'awaiting'
+          CHECK (receiving_status IN ('awaiting', 'partial', 'complete', 'extra_units', 'cancelled')),
+        received_good_units INTEGER DEFAULT 0,
+        received_damaged_units INTEGER DEFAULT 0,
+        received_sellable_units INTEGER DEFAULT 0,
+        first_received_date TIMESTAMP,
+        last_received_date TIMESTAMP,
+        notes_to_warehouse TEXT,
+        warehouse_notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_by INTEGER REFERENCES users(id),
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('  - warehouse_orders table: verified');
+
+    // Create receiving_log table if it doesn't exist
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS receiving_log (
+        id SERIAL PRIMARY KEY,
+        receiving_id VARCHAR(20) UNIQUE NOT NULL,
+        receiving_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        warehouse_order_id INTEGER REFERENCES warehouse_orders(id) ON DELETE SET NULL,
+        warehouse_order_line_id VARCHAR(50),
+        client_id INTEGER NOT NULL REFERENCES clients(id),
+        purchase_order_no VARCHAR(100),
+        vendor VARCHAR(255),
+        sku VARCHAR(100),
+        asin VARCHAR(20),
+        product_title VARCHAR(500),
+        received_good_units INTEGER NOT NULL DEFAULT 0,
+        received_damaged_units INTEGER DEFAULT 0,
+        selling_bundle_count INTEGER DEFAULT 1,
+        sellable_units INTEGER DEFAULT 0,
+        tracking_number VARCHAR(100),
+        notes TEXT,
+        receiver_id INTEGER REFERENCES users(id),
+        receiver_name VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('  - receiving_log table: verified');
+
+    // Create client_order_sequences table if it doesn't exist
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS client_order_sequences (
+        client_id INTEGER PRIMARY KEY REFERENCES clients(id) ON DELETE CASCADE,
+        next_sequence INTEGER DEFAULT 1
+      );
+    `);
+    console.log('  - client_order_sequences table: verified');
+
+    // Create indexes for warehouse_orders table
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_warehouse_orders_client_id ON warehouse_orders(client_id);
+      CREATE INDEX IF NOT EXISTS idx_warehouse_orders_receiving_status ON warehouse_orders(receiving_status);
+      CREATE INDEX IF NOT EXISTS idx_warehouse_orders_sku ON warehouse_orders(sku);
+      CREATE INDEX IF NOT EXISTS idx_warehouse_orders_asin ON warehouse_orders(asin);
+      CREATE INDEX IF NOT EXISTS idx_warehouse_orders_product_id ON warehouse_orders(product_id);
+      CREATE INDEX IF NOT EXISTS idx_warehouse_orders_listing_id ON warehouse_orders(listing_id);
+      CREATE INDEX IF NOT EXISTS idx_warehouse_orders_purchase_order_no ON warehouse_orders(purchase_order_no);
+      CREATE INDEX IF NOT EXISTS idx_warehouse_orders_warehouse_order_date ON warehouse_orders(warehouse_order_date);
+    `);
+    console.log('  - warehouse_orders table: indexes verified');
+
+    // Create indexes for receiving_log table
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_receiving_log_client_id ON receiving_log(client_id);
+      CREATE INDEX IF NOT EXISTS idx_receiving_log_warehouse_order_id ON receiving_log(warehouse_order_id);
+      CREATE INDEX IF NOT EXISTS idx_receiving_log_receiving_date ON receiving_log(receiving_date);
+      CREATE INDEX IF NOT EXISTS idx_receiving_log_sku ON receiving_log(sku);
+      CREATE INDEX IF NOT EXISTS idx_receiving_log_receiver_id ON receiving_log(receiver_id);
+    `);
+    console.log('  - receiving_log table: indexes verified');
 
     console.log('Auto-migrations completed successfully');
   } catch (error) {

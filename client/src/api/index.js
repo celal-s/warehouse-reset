@@ -291,3 +291,41 @@ export const importReturnBacklog = (files) => {
     body: formData
   });
 };
+
+// Warehouse Orders (Client)
+export const getClientOrders = (clientCode, filters = {}) => {
+  const params = new URLSearchParams(filters);
+  return request(`/clients/${clientCode}/warehouse-orders?${params}`);
+};
+
+export const createClientOrder = (clientCode, data) => request(`/clients/${clientCode}/warehouse-orders`, {
+  method: 'POST',
+  body: JSON.stringify(data)
+});
+
+export const getClientOrder = (clientCode, orderId) =>
+  request(`/clients/${clientCode}/warehouse-orders/${orderId}`);
+
+export const updateClientOrder = (clientCode, orderId, data) =>
+  request(`/clients/${clientCode}/warehouse-orders/${orderId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  });
+
+export const cancelClientOrder = (clientCode, orderId) =>
+  request(`/clients/${clientCode}/warehouse-orders/${orderId}`, {
+    method: 'DELETE'
+  });
+
+// Warehouse Orders (Employee Receiving)
+export const searchOrdersForReceiving = (clientId, query) =>
+  request(`/warehouse-orders/search?client_id=${clientId}&q=${encodeURIComponent(query)}`);
+
+export const getOrderForReceiving = (orderId) =>
+  request(`/warehouse-orders/${orderId}`);
+
+export const submitOrderReceiving = (orderId, data) =>
+  request(`/warehouse-orders/${orderId}/receive`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });

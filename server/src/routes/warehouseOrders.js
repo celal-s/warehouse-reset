@@ -1,0 +1,815 @@
+const express = require('express');
+const clientRoutes = express.Router({ mergeParams: true });
+const employeeRoutes = express.Router();
+const db = require('../db');
+const { authenticate, authorize } = require('../middleware/auth');
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Generate a unique order line ID for a client
+ * Format: CLIENTCODE_0000001
+ */
+async function generateOrderLineId(clientId) {
+  const client = await db.query('SELECT client_code FROM clients WHERE id = $1', [clientId]);
+  const seq = await db.query(`
+    INSERT INTO client_order_sequences (client_id, next_sequence)
+    VALUES ($1, 2)
+    ON CONFLICT (client_id)
+    DO UPDATE SET next_sequence = client_order_sequences.next_sequence + 1
+    RETURNING next_sequence - 1 as seq
+  `, [clientId]);
+  return `${client.rows[0].client_code}_${String(seq.rows[0].seq).padStart(7, '0')}`;
+}
+
+/**
+ * Calculate the receiving status based on received vs expected units
+ */
+function calculateStatus(order) {
+  if (order.receiving_status === 'cancelled') return 'cancelled';
+  const totalReceived = order.received_good_units + order.received_damaged_units;
+  const expected = order.expected_single_units;
+  if (totalReceived === 0) return 'awaiting';
+  if (totalReceived < expected) return 'partial';
+  if (totalReceived === expected) return 'complete';
+  return 'extra_units';
+}
+
+/**
+ * Generate a unique receiving ID
+ * Format: RCV + 6 random digits
+ */
+function generateReceivingId() {
+  const randomDigits = Math.floor(100000 + Math.random() * 900000);
+  return `RCV${randomDigits}`;
+}
+
+/**
+ * Resolve clientCode to client_id
+ */
+async function resolveClientCode(clientCode) {
+  const result = await db.query(
+    'SELECT id, client_code, name FROM clients WHERE client_code = $1',
+    [clientCode]
+  );
+  if (result.rows.length === 0) {
+    return null;
+  }
+  return result.rows[0];
+}
+
+// ============================================================================
+// CLIENT ROUTES - /api/clients/:clientCode/warehouse-orders
+// ============================================================================
+
+// Middleware to resolve clientCode and check access
+const resolveClient = async (req, res, next) => {
+  const { clientCode } = req.params;
+
+  if (!clientCode) {
+    return res.status(400).json({ error: 'Client code is required' });
+  }
+
+  const client = await resolveClientCode(clientCode);
+  if (!client) {
+    return res.status(404).json({ error: 'Client not found' });
+  }
+
+  // If user is a client, verify they can only access their own data
+  if (req.user.role === 'client' && req.user.client_id !== client.id) {
+    return res.status(403).json({ error: 'Access denied: You can only access your own client data' });
+  }
+
+  req.client = client;
+  next();
+};
+
+// Apply authentication and authorization to all client routes
+clientRoutes.use(authenticate, authorize('client', 'manager', 'admin'), resolveClient);
+
+/**
+ * GET / - List warehouse orders with filters
+ * Query params: status, search, start_date, end_date, page, limit
+ */
+clientRoutes.get('/', async (req, res, next) => {
+  try {
+    const clientId = req.client.id;
+    const { status, search, start_date, end_date, page = 1, limit = 50 } = req.query;
+
+    let sql = `
+      SELECT
+        wo.id,
+        wo.warehouse_order_line_id,
+        wo.warehouse_order_date,
+        wo.purchase_order_date,
+        wo.purchase_order_no,
+        wo.vendor,
+        wo.sku,
+        wo.asin,
+        wo.fnsku,
+        wo.product_title,
+        wo.product_id,
+        wo.listing_id,
+        wo.is_hazmat,
+        wo.photo_link,
+        wo.purchase_bundle_count,
+        wo.purchase_order_quantity,
+        wo.selling_bundle_count,
+        wo.expected_single_units,
+        wo.expected_sellable_units,
+        wo.total_cost,
+        wo.unit_cost,
+        wo.receiving_status,
+        wo.received_good_units,
+        wo.received_damaged_units,
+        wo.received_sellable_units,
+        wo.first_received_date,
+        wo.last_received_date,
+        wo.notes_to_warehouse,
+        wo.warehouse_notes,
+        wo.created_at,
+        wo.updated_at,
+        m.id as marketplace_id,
+        m.code as marketplace_code,
+        m.name as marketplace_name
+      FROM warehouse_orders wo
+      LEFT JOIN marketplaces m ON wo.marketplace_id = m.id
+      WHERE wo.client_id = $1
+    `;
+
+    const params = [clientId];
+    let paramIndex = 2;
+
+    if (status) {
+      sql += ` AND wo.receiving_status = $${paramIndex}`;
+      params.push(status);
+      paramIndex++;
+    }
+
+    if (search) {
+      sql += ` AND (
+        wo.product_title ILIKE $${paramIndex} OR
+        wo.sku ILIKE $${paramIndex} OR
+        wo.asin ILIKE $${paramIndex} OR
+        wo.fnsku ILIKE $${paramIndex} OR
+        wo.purchase_order_no ILIKE $${paramIndex} OR
+        wo.warehouse_order_line_id ILIKE $${paramIndex} OR
+        wo.vendor ILIKE $${paramIndex}
+      )`;
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    if (start_date) {
+      sql += ` AND wo.warehouse_order_date >= $${paramIndex}`;
+      params.push(start_date);
+      paramIndex++;
+    }
+
+    if (end_date) {
+      sql += ` AND wo.warehouse_order_date <= $${paramIndex}`;
+      params.push(end_date);
+      paramIndex++;
+    }
+
+    // Get total count for pagination
+    const countSql = sql.replace(/SELECT[\s\S]*?FROM/, 'SELECT COUNT(*) FROM');
+    const countResult = await db.query(countSql, params);
+    const totalCount = parseInt(countResult.rows[0].count);
+
+    // Add pagination
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    sql += ` ORDER BY wo.warehouse_order_date DESC, wo.id DESC`;
+    sql += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(parseInt(limit), offset);
+
+    const result = await db.query(sql, params);
+
+    res.json({
+      orders: result.rows,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST / - Create new warehouse order(s)
+ * Body: single order object or array of orders
+ */
+clientRoutes.post('/', async (req, res, next) => {
+  try {
+    const clientId = req.client.id;
+    const orders = Array.isArray(req.body) ? req.body : [req.body];
+    const createdOrders = [];
+
+    for (const order of orders) {
+      const {
+        purchase_order_date,
+        purchase_order_no,
+        vendor,
+        marketplace_id,
+        sku,
+        asin,
+        fnsku,
+        product_title,
+        product_id,
+        listing_id,
+        is_hazmat,
+        photo_link,
+        purchase_bundle_count = 1,
+        purchase_order_quantity,
+        selling_bundle_count = 1,
+        total_cost,
+        unit_cost,
+        notes_to_warehouse
+      } = order;
+
+      if (!product_title) {
+        return res.status(400).json({ error: 'Product title is required' });
+      }
+
+      if (!purchase_order_quantity || purchase_order_quantity < 1) {
+        return res.status(400).json({ error: 'Purchase order quantity is required and must be positive' });
+      }
+
+      // Generate unique order line ID
+      const warehouseOrderLineId = await generateOrderLineId(clientId);
+
+      // Calculate expected units
+      const expectedSingleUnits = purchase_bundle_count * purchase_order_quantity;
+      const expectedSellableUnits = Math.floor(expectedSingleUnits / selling_bundle_count);
+
+      const result = await db.query(`
+        INSERT INTO warehouse_orders (
+          warehouse_order_line_id,
+          client_id,
+          purchase_order_date,
+          purchase_order_no,
+          vendor,
+          marketplace_id,
+          sku,
+          asin,
+          fnsku,
+          product_title,
+          product_id,
+          listing_id,
+          is_hazmat,
+          photo_link,
+          purchase_bundle_count,
+          purchase_order_quantity,
+          selling_bundle_count,
+          expected_single_units,
+          expected_sellable_units,
+          total_cost,
+          unit_cost,
+          notes_to_warehouse,
+          created_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+        RETURNING *
+      `, [
+        warehouseOrderLineId,
+        clientId,
+        purchase_order_date || null,
+        purchase_order_no || null,
+        vendor || null,
+        marketplace_id || null,
+        sku || null,
+        asin || null,
+        fnsku || null,
+        product_title,
+        product_id || null,
+        listing_id || null,
+        is_hazmat || false,
+        photo_link || null,
+        purchase_bundle_count,
+        purchase_order_quantity,
+        selling_bundle_count,
+        expectedSingleUnits,
+        expectedSellableUnits,
+        total_cost || null,
+        unit_cost || null,
+        notes_to_warehouse || null,
+        req.user?.id || null
+      ]);
+
+      createdOrders.push(result.rows[0]);
+    }
+
+    res.status(201).json({
+      message: `Created ${createdOrders.length} order(s)`,
+      orders: createdOrders
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /:id - Get single order with receiving history
+ */
+clientRoutes.get('/:id', async (req, res, next) => {
+  try {
+    const clientId = req.client.id;
+    const { id } = req.params;
+
+    const result = await db.query(`
+      SELECT
+        wo.id,
+        wo.warehouse_order_line_id,
+        wo.warehouse_order_date,
+        wo.purchase_order_date,
+        wo.purchase_order_no,
+        wo.vendor,
+        wo.sku,
+        wo.asin,
+        wo.fnsku,
+        wo.product_title,
+        wo.product_id,
+        wo.listing_id,
+        wo.is_hazmat,
+        wo.photo_link,
+        wo.purchase_bundle_count,
+        wo.purchase_order_quantity,
+        wo.selling_bundle_count,
+        wo.expected_single_units,
+        wo.expected_sellable_units,
+        wo.total_cost,
+        wo.unit_cost,
+        wo.receiving_status,
+        wo.received_good_units,
+        wo.received_damaged_units,
+        wo.received_sellable_units,
+        wo.first_received_date,
+        wo.last_received_date,
+        wo.notes_to_warehouse,
+        wo.warehouse_notes,
+        wo.created_at,
+        wo.updated_at,
+        m.id as marketplace_id,
+        m.code as marketplace_code,
+        m.name as marketplace_name,
+        (SELECT json_agg(jsonb_build_object(
+          'id', rl.id,
+          'receiving_id', rl.receiving_id,
+          'receiving_date', rl.receiving_date,
+          'received_good_units', rl.received_good_units,
+          'received_damaged_units', rl.received_damaged_units,
+          'sellable_units', rl.sellable_units,
+          'tracking_number', rl.tracking_number,
+          'notes', rl.notes,
+          'receiver_name', rl.receiver_name,
+          'created_at', rl.created_at
+        ) ORDER BY rl.receiving_date DESC)
+         FROM receiving_log rl WHERE rl.warehouse_order_id = wo.id) as receiving_history
+      FROM warehouse_orders wo
+      LEFT JOIN marketplaces m ON wo.marketplace_id = m.id
+      WHERE wo.id = $1 AND wo.client_id = $2
+    `, [id, clientId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Warehouse order not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PUT /:id - Update warehouse order
+ */
+clientRoutes.put('/:id', async (req, res, next) => {
+  try {
+    const clientId = req.client.id;
+    const { id } = req.params;
+    const {
+      purchase_order_date,
+      purchase_order_no,
+      vendor,
+      marketplace_id,
+      sku,
+      asin,
+      fnsku,
+      product_title,
+      product_id,
+      listing_id,
+      is_hazmat,
+      photo_link,
+      purchase_bundle_count,
+      purchase_order_quantity,
+      selling_bundle_count,
+      total_cost,
+      unit_cost,
+      notes_to_warehouse
+    } = req.body;
+
+    // Verify order exists and belongs to client
+    const existingOrder = await db.query(
+      'SELECT * FROM warehouse_orders WHERE id = $1 AND client_id = $2',
+      [id, clientId]
+    );
+
+    if (existingOrder.rows.length === 0) {
+      return res.status(404).json({ error: 'Warehouse order not found' });
+    }
+
+    // Build dynamic update query
+    const updates = [];
+    const params = [];
+    let paramIndex = 1;
+
+    const fieldsToUpdate = {
+      purchase_order_date,
+      purchase_order_no,
+      vendor,
+      marketplace_id,
+      sku,
+      asin,
+      fnsku,
+      product_title,
+      product_id,
+      listing_id,
+      is_hazmat,
+      photo_link,
+      purchase_bundle_count,
+      purchase_order_quantity,
+      selling_bundle_count,
+      total_cost,
+      unit_cost,
+      notes_to_warehouse
+    };
+
+    for (const [key, value] of Object.entries(fieldsToUpdate)) {
+      if (value !== undefined) {
+        updates.push(`${key} = $${paramIndex}`);
+        params.push(value);
+        paramIndex++;
+      }
+    }
+
+    // Recalculate expected units if bundle counts or quantity changed
+    const newPurchaseBundleCount = purchase_bundle_count !== undefined ? purchase_bundle_count : existingOrder.rows[0].purchase_bundle_count;
+    const newPurchaseOrderQuantity = purchase_order_quantity !== undefined ? purchase_order_quantity : existingOrder.rows[0].purchase_order_quantity;
+    const newSellingBundleCount = selling_bundle_count !== undefined ? selling_bundle_count : existingOrder.rows[0].selling_bundle_count;
+
+    const expectedSingleUnits = newPurchaseBundleCount * newPurchaseOrderQuantity;
+    const expectedSellableUnits = Math.floor(expectedSingleUnits / newSellingBundleCount);
+
+    updates.push(`expected_single_units = $${paramIndex}`);
+    params.push(expectedSingleUnits);
+    paramIndex++;
+
+    updates.push(`expected_sellable_units = $${paramIndex}`);
+    params.push(expectedSellableUnits);
+    paramIndex++;
+
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No updates provided' });
+    }
+
+    params.push(id, clientId);
+
+    const result = await db.query(
+      `UPDATE warehouse_orders SET ${updates.join(', ')} WHERE id = $${paramIndex} AND client_id = $${paramIndex + 1} RETURNING *`,
+      params
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * DELETE /:id - Cancel warehouse order (set status to cancelled)
+ */
+clientRoutes.delete('/:id', async (req, res, next) => {
+  try {
+    const clientId = req.client.id;
+    const { id } = req.params;
+
+    const result = await db.query(`
+      UPDATE warehouse_orders
+      SET receiving_status = 'cancelled', updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1 AND client_id = $2
+      RETURNING *
+    `, [id, clientId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Warehouse order not found' });
+    }
+
+    res.json({
+      message: 'Order cancelled',
+      order: result.rows[0]
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+
+// ============================================================================
+// EMPLOYEE ROUTES - /api/warehouse-orders
+// ============================================================================
+
+// Apply authentication and authorization to all employee routes
+employeeRoutes.use(authenticate, authorize('employee', 'manager', 'admin'));
+
+/**
+ * GET /search - Search orders for receiving
+ * Query params: client_id (required), q (search term)
+ * Filters: exclude complete/cancelled, last 45 days only
+ */
+employeeRoutes.get('/search', async (req, res, next) => {
+  try {
+    const { client_id, q } = req.query;
+
+    if (!client_id) {
+      return res.status(400).json({ error: 'client_id is required' });
+    }
+
+    let sql = `
+      SELECT
+        wo.id,
+        wo.warehouse_order_line_id,
+        wo.warehouse_order_date,
+        wo.purchase_order_date,
+        wo.purchase_order_no,
+        wo.vendor,
+        wo.sku,
+        wo.asin,
+        wo.fnsku,
+        wo.product_title,
+        wo.product_id,
+        wo.listing_id,
+        wo.is_hazmat,
+        wo.photo_link,
+        wo.purchase_bundle_count,
+        wo.purchase_order_quantity,
+        wo.selling_bundle_count,
+        wo.expected_single_units,
+        wo.expected_sellable_units,
+        wo.receiving_status,
+        wo.received_good_units,
+        wo.received_damaged_units,
+        wo.received_sellable_units,
+        wo.notes_to_warehouse,
+        wo.warehouse_notes,
+        c.client_code,
+        c.name as client_name,
+        m.id as marketplace_id,
+        m.code as marketplace_code,
+        m.name as marketplace_name
+      FROM warehouse_orders wo
+      JOIN clients c ON wo.client_id = c.id
+      LEFT JOIN marketplaces m ON wo.marketplace_id = m.id
+      WHERE wo.client_id = $1
+        AND wo.receiving_status NOT IN ('complete', 'cancelled')
+        AND wo.warehouse_order_date >= NOW() - INTERVAL '45 days'
+    `;
+
+    const params = [client_id];
+    let paramIndex = 2;
+
+    if (q) {
+      sql += ` AND (
+        wo.product_title ILIKE $${paramIndex} OR
+        wo.sku ILIKE $${paramIndex} OR
+        wo.asin ILIKE $${paramIndex} OR
+        wo.fnsku ILIKE $${paramIndex} OR
+        wo.purchase_order_no ILIKE $${paramIndex} OR
+        wo.warehouse_order_line_id ILIKE $${paramIndex} OR
+        wo.vendor ILIKE $${paramIndex}
+      )`;
+      params.push(`%${q}%`);
+      paramIndex++;
+    }
+
+    sql += ` ORDER BY wo.warehouse_order_date DESC, wo.id DESC LIMIT 100`;
+
+    const result = await db.query(sql, params);
+
+    res.json({ orders: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /:id - Get order details for receiving
+ */
+employeeRoutes.get('/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const result = await db.query(`
+      SELECT
+        wo.id,
+        wo.warehouse_order_line_id,
+        wo.client_id,
+        wo.warehouse_order_date,
+        wo.purchase_order_date,
+        wo.purchase_order_no,
+        wo.vendor,
+        wo.sku,
+        wo.asin,
+        wo.fnsku,
+        wo.product_title,
+        wo.product_id,
+        wo.listing_id,
+        wo.is_hazmat,
+        wo.photo_link,
+        wo.purchase_bundle_count,
+        wo.purchase_order_quantity,
+        wo.selling_bundle_count,
+        wo.expected_single_units,
+        wo.expected_sellable_units,
+        wo.total_cost,
+        wo.unit_cost,
+        wo.receiving_status,
+        wo.received_good_units,
+        wo.received_damaged_units,
+        wo.received_sellable_units,
+        wo.first_received_date,
+        wo.last_received_date,
+        wo.notes_to_warehouse,
+        wo.warehouse_notes,
+        wo.created_at,
+        wo.updated_at,
+        c.client_code,
+        c.name as client_name,
+        m.id as marketplace_id,
+        m.code as marketplace_code,
+        m.name as marketplace_name,
+        (SELECT json_agg(jsonb_build_object(
+          'id', rl.id,
+          'receiving_id', rl.receiving_id,
+          'receiving_date', rl.receiving_date,
+          'received_good_units', rl.received_good_units,
+          'received_damaged_units', rl.received_damaged_units,
+          'sellable_units', rl.sellable_units,
+          'tracking_number', rl.tracking_number,
+          'notes', rl.notes,
+          'receiver_name', rl.receiver_name,
+          'created_at', rl.created_at
+        ) ORDER BY rl.receiving_date DESC)
+         FROM receiving_log rl WHERE rl.warehouse_order_id = wo.id) as receiving_history
+      FROM warehouse_orders wo
+      JOIN clients c ON wo.client_id = c.id
+      LEFT JOIN marketplaces m ON wo.marketplace_id = m.id
+      WHERE wo.id = $1
+    `, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Warehouse order not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /:id/receive - Submit receiving entry
+ * Body: received_good_units, received_damaged_units, tracking_number, notes
+ */
+employeeRoutes.post('/:id/receive', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const {
+      received_good_units = 0,
+      received_damaged_units = 0,
+      tracking_number,
+      notes
+    } = req.body;
+
+    // Validate at least some units are being received
+    if (received_good_units < 0 || received_damaged_units < 0) {
+      return res.status(400).json({ error: 'Received units cannot be negative' });
+    }
+
+    if (received_good_units === 0 && received_damaged_units === 0) {
+      return res.status(400).json({ error: 'Must receive at least one unit (good or damaged)' });
+    }
+
+    // Get the order
+    const orderResult = await db.query(`
+      SELECT wo.*, c.client_code
+      FROM warehouse_orders wo
+      JOIN clients c ON wo.client_id = c.id
+      WHERE wo.id = $1
+    `, [id]);
+
+    if (orderResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Warehouse order not found' });
+    }
+
+    const order = orderResult.rows[0];
+
+    // Check if order is cancelled
+    if (order.receiving_status === 'cancelled') {
+      return res.status(400).json({ error: 'Cannot receive against a cancelled order' });
+    }
+
+    // Generate receiving ID
+    const receivingId = generateReceivingId();
+
+    // Calculate sellable units from good units
+    const sellableUnits = Math.floor(received_good_units / order.selling_bundle_count);
+
+    // Create receiving log entry
+    const receivingLogResult = await db.query(`
+      INSERT INTO receiving_log (
+        receiving_id,
+        warehouse_order_id,
+        warehouse_order_line_id,
+        client_id,
+        purchase_order_no,
+        vendor,
+        sku,
+        asin,
+        product_title,
+        received_good_units,
+        received_damaged_units,
+        selling_bundle_count,
+        sellable_units,
+        tracking_number,
+        notes,
+        receiver_id,
+        receiver_name
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+      RETURNING *
+    `, [
+      receivingId,
+      order.id,
+      order.warehouse_order_line_id,
+      order.client_id,
+      order.purchase_order_no,
+      order.vendor,
+      order.sku,
+      order.asin,
+      order.product_title,
+      received_good_units,
+      received_damaged_units,
+      order.selling_bundle_count,
+      sellableUnits,
+      tracking_number || null,
+      notes || null,
+      req.user?.id || null,
+      req.user?.name || null
+    ]);
+
+    // Update warehouse order totals
+    const newGoodUnits = order.received_good_units + received_good_units;
+    const newDamagedUnits = order.received_damaged_units + received_damaged_units;
+    const newSellableUnits = order.received_sellable_units + sellableUnits;
+    const isFirstReceiving = order.first_received_date === null;
+
+    // Calculate new status
+    const updatedOrder = {
+      ...order,
+      received_good_units: newGoodUnits,
+      received_damaged_units: newDamagedUnits
+    };
+    const newStatus = calculateStatus(updatedOrder);
+
+    const updateResult = await db.query(`
+      UPDATE warehouse_orders
+      SET
+        received_good_units = $1,
+        received_damaged_units = $2,
+        received_sellable_units = $3,
+        receiving_status = $4,
+        first_received_date = COALESCE(first_received_date, CURRENT_TIMESTAMP),
+        last_received_date = CURRENT_TIMESTAMP,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $5
+      RETURNING *
+    `, [newGoodUnits, newDamagedUnits, newSellableUnits, newStatus, id]);
+
+    res.status(201).json({
+      message: 'Receiving entry recorded',
+      receiving_entry: receivingLogResult.rows[0],
+      order: updateResult.rows[0]
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+
+module.exports = { clientRoutes, employeeRoutes };

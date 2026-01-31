@@ -10,7 +10,8 @@ export function useClientNavigation() {
   const navItems = [
     { to: `/client/${clientCode}`, label: 'Dashboard' },
     { to: `/client/${clientCode}/products`, label: 'Products' },
-    { to: `/client/${clientCode}/inventory`, label: 'Inventory' }
+    { to: `/client/${clientCode}/inventory`, label: 'Inventory' },
+    { to: `/client/${clientCode}/orders`, label: 'Orders' }
   ]
 
   return {

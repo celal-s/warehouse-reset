@@ -38,6 +38,10 @@ import AdminDbBrowser from '../pages/admin/DbBrowser'
 import AdminDbBrowserTable from '../pages/admin/DbBrowserTable'
 import AdminDbBrowserRecord from '../pages/admin/DbBrowserRecord'
 import AdminNavigation from '../pages/admin/Navigation'
+import WarehouseOrders from '../pages/client/orders/WarehouseOrders'
+import WarehouseOrderDetail from '../pages/client/orders/WarehouseOrderDetail'
+import WarehouseOrderNew from '../pages/client/orders/WarehouseOrderNew'
+import OrderReceiving from '../pages/employee/OrderReceiving'
 
 /**
  * Route configuration organized by section
@@ -87,6 +91,11 @@ export const routeConfig = [
         path: '/employee/returns',
         component: EmployeeReturns,
         description: 'Process returns'
+      },
+      {
+        path: '/employee/receiving',
+        component: OrderReceiving,
+        description: 'Order receiving'
       }
     ]
   },
@@ -118,6 +127,21 @@ export const routeConfig = [
         path: '/client/:clientCode/products/:productId',
         component: ClientProductDetail,
         description: 'Product details'
+      },
+      {
+        path: '/client/:clientCode/orders',
+        component: WarehouseOrders,
+        description: 'Warehouse orders'
+      },
+      {
+        path: '/client/:clientCode/orders/new',
+        component: WarehouseOrderNew,
+        description: 'Create warehouse order'
+      },
+      {
+        path: '/client/:clientCode/orders/:orderId',
+        component: WarehouseOrderDetail,
+        description: 'Order details'
       }
     ]
   },
