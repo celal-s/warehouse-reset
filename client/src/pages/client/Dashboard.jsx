@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import Layout from '../../components/Layout'
 import { getClientDashboard } from '../../api'
+import { useClientNavigation } from '../../hooks/useClientNavigation'
 
 export default function ClientDashboard() {
   const { clientCode } = useParams()
+  const { navItems, isStaffViewing } = useClientNavigation()
   const [dashboard, setDashboard] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -26,15 +28,11 @@ export default function ClientDashboard() {
     }
   }
 
-  const navItems = [
-    { to: `/client/${clientCode}`, label: 'Dashboard' },
-    { to: `/client/${clientCode}/products`, label: 'Products' },
-    { to: `/client/${clientCode}/inventory`, label: 'Inventory' }
-  ]
+  const managerViewingClient = isStaffViewing ? clientCode : null
 
   if (loading) {
     return (
-      <Layout title={`Client: ${clientCode}`} navItems={navItems}>
+      <Layout title={`Client: ${clientCode}`} navItems={navItems} managerViewingClient={managerViewingClient}>
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-2 text-gray-500">Loading dashboard...</p>
@@ -45,7 +43,7 @@ export default function ClientDashboard() {
 
   if (error) {
     return (
-      <Layout title={`Client: ${clientCode}`} navItems={navItems}>
+      <Layout title={`Client: ${clientCode}`} navItems={navItems} managerViewingClient={managerViewingClient}>
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
           {error}
         </div>
@@ -54,7 +52,7 @@ export default function ClientDashboard() {
   }
 
   return (
-    <Layout title={`Client: ${clientCode}`} navItems={navItems}>
+    <Layout title={`Client: ${clientCode}`} navItems={navItems} managerViewingClient={managerViewingClient}>
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {/* Total Items */}

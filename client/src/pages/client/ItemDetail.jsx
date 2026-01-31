@@ -3,9 +3,11 @@ import { useParams } from 'react-router-dom'
 import Layout from '../../components/Layout'
 import LabelUpload from '../../components/upload/LabelUpload'
 import { getClientInventoryItem, makeDecision } from '../../api'
+import { useClientNavigation } from '../../hooks/useClientNavigation'
 
 export default function ClientItemDetail() {
   const { clientCode, itemId } = useParams()
+  const { navItems, isStaffViewing } = useClientNavigation()
   const [item, setItem] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -72,11 +74,7 @@ export default function ClientItemDetail() {
     }
   }
 
-  const navItems = [
-    { to: `/client/${clientCode}`, label: 'Dashboard' },
-    { to: `/client/${clientCode}/products`, label: 'Products' },
-    { to: `/client/${clientCode}/inventory`, label: 'Inventory' }
-  ]
+  const managerViewingClient = isStaffViewing ? clientCode : null
 
   const decisionOptions = [
     { value: 'ship_to_fba', label: 'Ship to FBA', description: 'Send to Amazon fulfillment center' },
@@ -88,7 +86,7 @@ export default function ClientItemDetail() {
 
   if (loading) {
     return (
-      <Layout title="Item Details" navItems={navItems}>
+      <Layout title="Item Details" navItems={navItems} managerViewingClient={managerViewingClient}>
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-2 text-gray-500">Loading item...</p>
@@ -99,7 +97,7 @@ export default function ClientItemDetail() {
 
   if (error && !item) {
     return (
-      <Layout title="Item Details" navItems={navItems}>
+      <Layout title="Item Details" navItems={navItems} managerViewingClient={managerViewingClient}>
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
           {error}
         </div>
@@ -108,7 +106,7 @@ export default function ClientItemDetail() {
   }
 
   return (
-    <Layout title="Item Details" navItems={navItems}>
+    <Layout title="Item Details" navItems={navItems} managerViewingClient={managerViewingClient}>
       {/* Success message */}
       {success && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">

@@ -4,9 +4,11 @@ import Layout from '../../components/Layout'
 import { DataTable, DataTableToolbar, useDataTable } from '../../components/DataTable'
 import { Button, Alert, StatusBadge } from '../../components/ui'
 import { getClientInventory } from '../../api'
+import { useClientNavigation } from '../../hooks/useClientNavigation'
 
 export default function ClientInventory() {
   const { clientCode } = useParams()
+  const { navItems, isStaffViewing } = useClientNavigation()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -157,12 +159,6 @@ export default function ClientInventory() {
     }
   ]
 
-  const navItems = [
-    { to: `/client/${clientCode}`, label: 'Dashboard' },
-    { to: `/client/${clientCode}/products`, label: 'Products' },
-    { to: `/client/${clientCode}/inventory`, label: 'Inventory' }
-  ]
-
   // Empty state configuration
   const emptyState = {
     icon: (
@@ -180,7 +176,11 @@ export default function ClientInventory() {
   }
 
   return (
-    <Layout title="Inventory" navItems={navItems}>
+    <Layout
+      title="Inventory"
+      navItems={navItems}
+      managerViewingClient={isStaffViewing ? clientCode : null}
+    >
       {/* Error alert */}
       {error && (
         <Alert variant="error" className="mb-6">

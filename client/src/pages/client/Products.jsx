@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import Layout from '../../components/Layout'
 import { getClientProducts } from '../../api'
+import { useClientNavigation } from '../../hooks/useClientNavigation'
 
 export default function ClientProducts() {
   const { clientCode } = useParams()
+  const { navItems, isStaffViewing } = useClientNavigation()
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -38,14 +40,12 @@ export default function ClientProducts() {
     )
   })
 
-  const navItems = [
-    { to: `/client/${clientCode}`, label: 'Dashboard' },
-    { to: `/client/${clientCode}/products`, label: 'Products' },
-    { to: `/client/${clientCode}/inventory`, label: 'Inventory' }
-  ]
-
   return (
-    <Layout title="Product Catalog" navItems={navItems}>
+    <Layout
+      title="Product Catalog"
+      navItems={navItems}
+      managerViewingClient={isStaffViewing ? clientCode : null}
+    >
       {/* Info Banner */}
       <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
         <div className="flex items-start gap-3">
@@ -128,7 +128,7 @@ export default function ClientProducts() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredProducts.map((product) => (
-                <tr key={product.id} className="hover:bg-gray-50">
+                <tr key={product.listing_id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       {product.display_image_url ? (
@@ -170,7 +170,7 @@ export default function ClientProducts() {
                   </td>
                   <td className="px-6 py-4">
                     <Link
-                      to={`/client/${clientCode}/products/${product.id}`}
+                      to={`/client/${clientCode}/products/${product.product_id}`}
                       className="text-blue-600 hover:text-blue-800 font-medium"
                     >
                       View

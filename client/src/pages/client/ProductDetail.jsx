@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import Layout from '../../components/Layout'
 import { getClientProduct } from '../../api'
+import { useClientNavigation } from '../../hooks/useClientNavigation'
 
 export default function ClientProductDetail() {
   const { clientCode, productId } = useParams()
+  const { navItems, isStaffViewing } = useClientNavigation()
   const [product, setProduct] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -26,11 +28,7 @@ export default function ClientProductDetail() {
     }
   }
 
-  const navItems = [
-    { to: `/client/${clientCode}`, label: 'Dashboard' },
-    { to: `/client/${clientCode}/products`, label: 'Products' },
-    { to: `/client/${clientCode}/inventory`, label: 'Inventory' }
-  ]
+  const managerViewingClient = isStaffViewing ? clientCode : null
 
   const getStatusBadge = (status) => {
     const styles = {
@@ -59,7 +57,7 @@ export default function ClientProductDetail() {
 
   if (loading) {
     return (
-      <Layout title="Product Detail" navItems={navItems}>
+      <Layout title="Product Detail" navItems={navItems} managerViewingClient={managerViewingClient}>
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-2 text-gray-500">Loading product...</p>
@@ -70,7 +68,7 @@ export default function ClientProductDetail() {
 
   if (error) {
     return (
-      <Layout title="Product Detail" navItems={navItems}>
+      <Layout title="Product Detail" navItems={navItems} managerViewingClient={managerViewingClient}>
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
           {error}
         </div>
@@ -79,7 +77,7 @@ export default function ClientProductDetail() {
   }
 
   return (
-    <Layout title="Product Detail" navItems={navItems}>
+    <Layout title="Product Detail" navItems={navItems} managerViewingClient={managerViewingClient}>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Info */}
         <div className="lg:col-span-2 space-y-6">
