@@ -21,6 +21,7 @@ router.get('/', authenticate, async (req, res, next) => {
         COALESCE(i.received_at, i.created_at) as received_at,
         COALESCE(i.condition_notes, '') as condition_notes,
         COALESCE(i.lot_number, '') as lot_number,
+        i.listing_id,
         i.created_at,
         i.updated_at,
         p.id as product_id,
@@ -32,16 +33,22 @@ router.get('/', authenticate, async (req, res, next) => {
         sl.id as location_id,
         sl.type as location_type,
         sl.label as location_label,
+        cpl.sku,
+        cpl.asin,
+        cpl.fnsku,
+        m.code as marketplace,
         (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type, 'source', COALESCE(pp.photo_source, 'warehouse')))
          FROM product_photos pp WHERE pp.product_id = p.id) as photos,
         (SELECT json_agg(jsonb_build_object('id', ip.id, 'url', ip.photo_url, 'type', ip.photo_type, 'notes', ip.notes))
          FROM inventory_photos ip WHERE ip.inventory_item_id = i.id) as inventory_photos,
         (SELECT pp.photo_url FROM product_photos pp WHERE pp.product_id = p.id ORDER BY pp.uploaded_at DESC LIMIT 1) as display_image_url,
-        (SELECT CASE WHEN cpl.asin IS NOT NULL AND m.domain IS NOT NULL THEN 'https://www.' || m.domain || '/dp/' || cpl.asin ELSE NULL END FROM client_product_listings cpl LEFT JOIN marketplaces m ON cpl.marketplace_id = m.id WHERE cpl.product_id = p.id AND cpl.client_id = c.id LIMIT 1) as amazon_url
+        CASE WHEN cpl.asin IS NOT NULL AND m.domain IS NOT NULL THEN 'https://www.' || m.domain || '/dp/' || cpl.asin ELSE NULL END as amazon_url
       FROM inventory_items i
       JOIN products p ON i.product_id = p.id
       JOIN clients c ON i.client_id = c.id
       LEFT JOIN storage_locations sl ON i.storage_location_id = sl.id
+      LEFT JOIN client_product_listings cpl ON i.listing_id = cpl.id OR (i.listing_id IS NULL AND cpl.product_id = p.id AND cpl.client_id = c.id)
+      LEFT JOIN marketplaces m ON cpl.marketplace_id = m.id
       WHERE 1=1
     `;
 
@@ -92,6 +99,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
         i.product_id,
         i.client_id,
         i.storage_location_id,
+        i.listing_id,
         i.quantity,
         i.condition,
         i.status,
@@ -113,6 +121,10 @@ router.get('/:id', authenticate, async (req, res, next) => {
         sl.id as location_id,
         sl.type as location_type,
         sl.label as location_label,
+        cpl.sku,
+        cpl.asin,
+        cpl.fnsku,
+        m.code as marketplace,
         CASE WHEN cpl.asin IS NOT NULL AND m.domain IS NOT NULL THEN 'https://www.' || m.domain || '/dp/' || cpl.asin ELSE NULL END as amazon_url,
         (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type, 'source', COALESCE(pp.photo_source, 'warehouse')))
          FROM product_photos pp WHERE pp.product_id = p.id) as photos,
@@ -136,7 +148,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
       JOIN products p ON i.product_id = p.id
       JOIN clients c ON i.client_id = c.id
       LEFT JOIN storage_locations sl ON i.storage_location_id = sl.id
-      LEFT JOIN client_product_listings cpl ON cpl.product_id = p.id AND cpl.client_id = c.id
+      LEFT JOIN client_product_listings cpl ON i.listing_id = cpl.id OR (i.listing_id IS NULL AND cpl.product_id = p.id AND cpl.client_id = c.id)
       LEFT JOIN marketplaces m ON cpl.marketplace_id = m.id
       WHERE i.id = $1
     `, [id]);
@@ -154,10 +166,30 @@ router.get('/:id', authenticate, async (req, res, next) => {
 // Create inventory item (employee adds from scan)
 router.post('/', authenticate, authorize('manager', 'admin', 'employee'), async (req, res, next) => {
   try {
-    const { product_id, client_id, storage_location_id, quantity, condition, new_location } = req.body;
+    const { product_id, client_id, listing_id, storage_location_id, quantity, condition, new_location } = req.body;
 
-    if (!product_id || !client_id) {
-      return res.status(400).json({ error: 'Product ID and Client ID are required' });
+    // Accept either listing_id OR (product_id + client_id)
+    let finalProductId = product_id;
+    let finalClientId = client_id;
+    let finalListingId = listing_id;
+
+    if (listing_id) {
+      // Validate and derive from listing_id
+      const listingResult = await db.query(
+        'SELECT id, product_id, client_id FROM client_product_listings WHERE id = $1',
+        [listing_id]
+      );
+      if (listingResult.rows.length === 0) {
+        return res.status(400).json({ error: 'Invalid listing_id: listing not found' });
+      }
+      const listing = listingResult.rows[0];
+      finalProductId = listing.product_id;
+      finalClientId = listing.client_id;
+      finalListingId = listing.id;
+    }
+
+    if (!finalProductId || !finalClientId) {
+      return res.status(400).json({ error: 'Either listing_id or both Product ID and Client ID are required' });
     }
 
     if (quantity !== undefined && (isNaN(quantity) || quantity < 1)) {
@@ -191,10 +223,10 @@ router.post('/', authenticate, authorize('manager', 'admin', 'employee'), async 
     }
 
     const result = await db.query(`
-      INSERT INTO inventory_items (product_id, client_id, storage_location_id, quantity, condition, status)
-      VALUES ($1, $2, $3, $4, $5, 'awaiting_decision')
+      INSERT INTO inventory_items (product_id, client_id, listing_id, storage_location_id, quantity, condition, status)
+      VALUES ($1, $2, $3, $4, $5, $6, 'awaiting_decision')
       RETURNING *
-    `, [product_id, client_id, locationId, quantity || 1, condition || 'sellable']);
+    `, [finalProductId, finalClientId, finalListingId, locationId, quantity || 1, condition || 'sellable']);
 
     // Log activity (fire and forget)
     activityService.log(
@@ -203,7 +235,7 @@ router.post('/', authenticate, authorize('manager', 'admin', 'employee'), async 
       'created',
       'employee',
       'warehouse',
-      { product_id, client_id, quantity, condition, location_id: locationId }
+      { product_id: finalProductId, client_id: finalClientId, listing_id: finalListingId, quantity, condition, location_id: locationId }
     ).catch(err => console.error('Activity log failed:', err));
 
     res.status(201).json(result.rows[0]);
@@ -287,10 +319,11 @@ router.delete('/:id', authenticate, authorize('manager', 'admin', 'employee'), a
 // Receive inventory (primary way to add stock)
 router.post('/receive', authenticate, authorize('manager', 'admin', 'employee'), async (req, res, next) => {
   try {
-    const { product_id, client_id, quantity, condition, storage_location_id, notes, lot_number, new_location } = req.body;
+    const { product_id, client_id, listing_id, quantity, condition, storage_location_id, notes, lot_number, new_location } = req.body;
 
-    if (!product_id || !client_id) {
-      return res.status(400).json({ error: 'Product ID and Client ID are required' });
+    // Accept either listing_id OR (product_id + client_id)
+    if (!listing_id && (!product_id || !client_id)) {
+      return res.status(400).json({ error: 'Either listing_id or both Product ID and Client ID are required' });
     }
 
     if (quantity !== undefined && (isNaN(quantity) || quantity < 1)) {
@@ -325,6 +358,7 @@ router.post('/receive', authenticate, authorize('manager', 'admin', 'employee'),
     const inventoryItem = await inventoryService.receiveInventory({
       productId: product_id,
       clientId: client_id,
+      listingId: listing_id,
       quantity: quantity || 1,
       condition: condition || 'sellable',
       storageLocationId: locationId,
@@ -340,7 +374,7 @@ router.post('/receive', authenticate, authorize('manager', 'admin', 'employee'),
       'received',
       'employee',
       req.user?.name || 'warehouse',
-      { product_id, client_id, quantity, condition, location_id: locationId }
+      { product_id: inventoryItem.product_id, client_id: inventoryItem.client_id, listing_id: inventoryItem.listing_id, quantity, condition, location_id: locationId }
     ).catch(err => console.error('Activity log failed:', err));
 
     res.status(201).json(inventoryItem);

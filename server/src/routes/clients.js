@@ -84,6 +84,7 @@ router.get('/:clientCode/inventory', authenticate, clientIsolation, checkClientA
         COALESCE(i.received_at, i.created_at) as received_at,
         COALESCE(i.condition_notes, '') as condition_notes,
         COALESCE(i.lot_number, '') as lot_number,
+        i.listing_id,
         i.created_at,
         i.updated_at,
         p.id as product_id,
@@ -98,12 +99,13 @@ router.get('/:clientCode/inventory', authenticate, clientIsolation, checkClientA
         cpl.sku,
         cpl.asin,
         cpl.fnsku,
+        m.code as marketplace,
         (SELECT pp.photo_url FROM product_photos pp WHERE pp.product_id = p.id ORDER BY pp.uploaded_at DESC LIMIT 1) as display_image_url,
         CASE WHEN cpl.asin IS NOT NULL AND m.domain IS NOT NULL THEN 'https://www.' || m.domain || '/dp/' || cpl.asin ELSE NULL END as amazon_url
       FROM inventory_items i
       JOIN products p ON i.product_id = p.id
       LEFT JOIN storage_locations sl ON i.storage_location_id = sl.id
-      LEFT JOIN client_product_listings cpl ON cpl.product_id = p.id AND cpl.client_id = i.client_id
+      LEFT JOIN client_product_listings cpl ON i.listing_id = cpl.id OR (i.listing_id IS NULL AND cpl.product_id = p.id AND cpl.client_id = i.client_id)
       LEFT JOIN marketplaces m ON cpl.marketplace_id = m.id
       WHERE i.client_id = $1
     `;
@@ -144,6 +146,7 @@ router.get('/:clientCode/inventory/:itemId', authenticate, clientIsolation, chec
         i.product_id,
         i.client_id,
         i.storage_location_id,
+        i.listing_id,
         i.quantity,
         i.condition,
         i.status,
@@ -168,6 +171,7 @@ router.get('/:clientCode/inventory/:itemId', authenticate, clientIsolation, chec
         cpl.sku,
         cpl.asin,
         cpl.fnsku,
+        m.code as marketplace,
         CASE WHEN cpl.asin IS NOT NULL AND m.domain IS NOT NULL THEN 'https://www.' || m.domain || '/dp/' || cpl.asin ELSE NULL END as amazon_url,
         (SELECT pp.photo_url FROM product_photos pp WHERE pp.product_id = p.id ORDER BY pp.uploaded_at DESC LIMIT 1) as display_image_url,
         (SELECT json_agg(jsonb_build_object('id', cd.id, 'decision', cd.decision, 'shipping_label_url', cd.shipping_label_url, 'notes', cd.notes, 'decided_at', cd.decided_at))
@@ -186,7 +190,7 @@ router.get('/:clientCode/inventory/:itemId', authenticate, clientIsolation, chec
       FROM inventory_items i
       JOIN products p ON i.product_id = p.id
       LEFT JOIN storage_locations sl ON i.storage_location_id = sl.id
-      LEFT JOIN client_product_listings cpl ON cpl.product_id = p.id AND cpl.client_id = i.client_id
+      LEFT JOIN client_product_listings cpl ON i.listing_id = cpl.id OR (i.listing_id IS NULL AND cpl.product_id = p.id AND cpl.client_id = i.client_id)
       LEFT JOIN marketplaces m ON cpl.marketplace_id = m.id
       WHERE i.id = $1 AND i.client_id = $2
     `, [itemId, clientId]);
@@ -202,13 +206,15 @@ router.get('/:clientCode/inventory/:itemId', authenticate, clientIsolation, chec
 });
 
 // Get client's product catalog (separate from inventory)
+// Groups by listing to show per-marketplace inventory
 router.get('/:clientCode/products', authenticate, clientIsolation, checkClientAccess, async (req, res, next) => {
   try {
     const clientId = req.client.id;
 
     const result = await db.query(`
       SELECT
-        p.id,
+        cpl.id as listing_id,
+        p.id as product_id,
         p.upc,
         p.title,
         COALESCE(p.warehouse_notes, '') as warehouse_notes,
@@ -216,20 +222,21 @@ router.get('/:clientCode/products', authenticate, clientIsolation, checkClientAc
         cpl.sku,
         cpl.asin,
         cpl.fnsku,
+        m.code as marketplace,
         CASE WHEN cpl.asin IS NOT NULL AND m.domain IS NOT NULL THEN 'https://www.' || m.domain || '/dp/' || cpl.asin ELSE NULL END as amazon_url,
         (SELECT pp.photo_url FROM product_photos pp WHERE pp.product_id = p.id ORDER BY pp.uploaded_at DESC LIMIT 1) as display_image_url,
         (SELECT json_agg(jsonb_build_object('id', pp.id, 'url', pp.photo_url, 'type', pp.photo_type, 'source', COALESCE(pp.photo_source, 'warehouse')))
          FROM product_photos pp WHERE pp.product_id = p.id) as photos,
         COALESCE(
-          (SELECT SUM(ii.quantity) FROM inventory_items ii WHERE ii.product_id = p.id AND ii.client_id = $1),
+          (SELECT SUM(ii.quantity) FROM inventory_items ii WHERE ii.listing_id = cpl.id),
           0
         )::integer as inventory_quantity,
-        (SELECT COUNT(*) FROM inventory_items ii WHERE ii.product_id = p.id AND ii.client_id = $1)::integer as inventory_entries
-      FROM products p
-      JOIN client_product_listings cpl ON cpl.product_id = p.id
+        (SELECT COUNT(*) FROM inventory_items ii WHERE ii.listing_id = cpl.id)::integer as inventory_entries
+      FROM client_product_listings cpl
+      JOIN products p ON cpl.product_id = p.id
       LEFT JOIN marketplaces m ON cpl.marketplace_id = m.id
       WHERE cpl.client_id = $1
-      ORDER BY p.title
+      ORDER BY p.title, m.code
     `, [clientId]);
 
     res.json({ products: result.rows });

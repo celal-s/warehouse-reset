@@ -3,21 +3,45 @@ const returnsService = require('./returnsService');
 
 const inventoryService = {
   // Receive inventory - creates inventory item and logs history
-  async receiveInventory({ productId, clientId, quantity, condition, storageLocationId, notes, lotNumber, userId }) {
+  async receiveInventory({ productId, clientId, listingId, quantity, condition, storageLocationId, notes, lotNumber, userId }) {
     const client = await db.pool.connect();
     try {
       await client.query('BEGIN');
 
+      let finalProductId = productId;
+      let finalClientId = clientId;
+      let finalListingId = listingId;
+
+      // If listingId provided, validate and derive productId/clientId from it
+      if (listingId) {
+        const listingResult = await client.query(
+          'SELECT id, product_id, client_id FROM client_product_listings WHERE id = $1',
+          [listingId]
+        );
+        if (listingResult.rows.length === 0) {
+          throw new Error('Invalid listing_id: listing not found');
+        }
+        const listing = listingResult.rows[0];
+        finalProductId = listing.product_id;
+        finalClientId = listing.client_id;
+        finalListingId = listing.id;
+      }
+
+      // Validate we have required fields
+      if (!finalProductId || !finalClientId) {
+        throw new Error('Either listing_id or both product_id and client_id are required');
+      }
+
       // Create inventory item
       const inventoryResult = await client.query(`
         INSERT INTO inventory_items (
-          product_id, client_id, quantity, condition, status,
+          product_id, client_id, listing_id, quantity, condition, status,
           storage_location_id, condition_notes, lot_number,
           received_at, received_by
         )
-        VALUES ($1, $2, $3, $4, 'awaiting_decision', $5, $6, $7, CURRENT_TIMESTAMP, $8)
+        VALUES ($1, $2, $3, $4, $5, 'awaiting_decision', $6, $7, $8, CURRENT_TIMESTAMP, $9)
         RETURNING *
-      `, [productId, clientId, quantity || 1, condition || 'sellable', storageLocationId, notes, lotNumber, userId]);
+      `, [finalProductId, finalClientId, finalListingId, quantity || 1, condition || 'sellable', storageLocationId, notes, lotNumber, userId]);
 
       const inventoryItem = inventoryResult.rows[0];
 
@@ -30,7 +54,7 @@ const inventoryService = {
       `, [inventoryItem.id, quantity || 1, userId, notes || 'Initial receipt']);
 
       // Check for matching pre-receipt returns
-      const matchingReturns = await returnsService.findMatchingReturns(productId);
+      const matchingReturns = await returnsService.findMatchingReturns(finalProductId);
       if (matchingReturns && matchingReturns.length > 0) {
         // Match the first pending return to this inventory item
         const returnToMatch = matchingReturns[0];
@@ -38,7 +62,7 @@ const inventoryService = {
           UPDATE returns
           SET inventory_item_id = $1, client_id = $2, status = 'matched'
           WHERE id = $3
-        `, [inventoryItem.id, clientId, returnToMatch.id]);
+        `, [inventoryItem.id, finalClientId, returnToMatch.id]);
 
         // Add to the returned inventory item so caller knows a return was matched
         inventoryItem.matched_return_id = returnToMatch.id;

@@ -111,7 +111,7 @@ export default function EmployeeScan() {
     try {
       const inventoryData = {
         product_id: product.id,
-        client_id: selectedClient.client_id,
+        listing_id: selectedClient.listing_id,
         quantity,
         condition,
         notes: conditionNotes
@@ -249,10 +249,10 @@ export default function EmployeeScan() {
               <div className="grid grid-cols-3 gap-3">
                 {product.client_listings.map((listing) => (
                   <button
-                    key={`${listing.client_id}-${listing.marketplace}`}
+                    key={listing.listing_id}
                     onClick={() => setSelectedClient(listing)}
                     className={`p-3 rounded-lg border-2 text-left transition-colors ${
-                      selectedClient?.client_id === listing.client_id
+                      selectedClient?.listing_id === listing.listing_id
                         ? 'border-blue-500 bg-blue-50'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}

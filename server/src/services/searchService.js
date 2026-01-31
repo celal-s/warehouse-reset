@@ -14,6 +14,7 @@ const searchService = {
         COALESCE(p.warehouse_condition, '') as warehouse_condition,
         (SELECT pp.photo_url FROM product_photos pp WHERE pp.product_id = p.id ORDER BY pp.uploaded_at DESC LIMIT 1) as display_image_url,
         json_agg(DISTINCT jsonb_build_object(
+          'listing_id', cpl.id,
           'client_id', c.id,
           'client_code', c.client_code,
           'client_name', c.name,
@@ -63,6 +64,7 @@ const searchService = {
         COALESCE(p.warehouse_notes, '') as warehouse_notes,
         COALESCE(p.warehouse_condition, '') as warehouse_condition,
         json_agg(DISTINCT jsonb_build_object(
+          'listing_id', cpl.id,
           'client_id', c.id,
           'client_code', c.client_code,
           'client_name', c.name,

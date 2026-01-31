@@ -173,6 +173,9 @@ ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS received_by INTEGER REFEREN
 ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS condition_notes TEXT;
 ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS lot_number VARCHAR(100);
 
+-- Add listing_id to connect inventory to specific marketplace listings
+ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS listing_id INTEGER REFERENCES client_product_listings(id) ON DELETE SET NULL;
+
 -- Remove UNIQUE constraint from inventory_items if it exists (allow multiple entries)
 -- Note: This needs manual handling as ALTER TABLE DROP CONSTRAINT is tricky
 `;
@@ -251,6 +254,38 @@ async function runMigrations() {
       ON client_product_listings (asin, client_id, marketplace_id)
       WHERE asin IS NOT NULL
     `);
+
+    // Add index for listing_id lookups
+    console.log('Adding index for inventory_items.listing_id...');
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_inventory_items_listing
+      ON inventory_items (listing_id)
+      WHERE listing_id IS NOT NULL
+    `);
+
+    // Backfill listing_id for existing inventory where unambiguous (single listing per product+client)
+    console.log('Backfilling listing_id for existing inventory...');
+    try {
+      const backfillResult = await pool.query(`
+        UPDATE inventory_items i
+        SET listing_id = subq.listing_id
+        FROM (
+          SELECT ii.id as inventory_id, cpl.id as listing_id
+          FROM inventory_items ii
+          JOIN (
+            SELECT product_id, client_id, MIN(id) as id
+            FROM client_product_listings
+            GROUP BY product_id, client_id
+            HAVING COUNT(*) = 1
+          ) cpl ON ii.product_id = cpl.product_id AND ii.client_id = cpl.client_id
+          WHERE ii.listing_id IS NULL
+        ) subq
+        WHERE i.id = subq.inventory_id
+      `);
+      console.log(`Backfilled listing_id for ${backfillResult.rowCount} inventory items`);
+    } catch (err) {
+      console.warn('Backfill warning:', err.message);
+    }
 
     // Update role constraint to include 'manager' role
     console.log('Updating role constraint...');
