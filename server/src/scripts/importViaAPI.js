@@ -27,7 +27,7 @@ const https = require('https');
 // Configuration
 const API_URL = process.env.API_URL || 'https://warehouse-api-7w73.onrender.com';
 const IMPORT_SECRET = process.env.IMPORT_SECRET || 'warehouse-import-2025';
-const CSV_DIR = path.join(__dirname, '../../../../full-receiving-implementation');
+const CSV_DIR = path.join(__dirname, '../../../full-receiving-implementation');
 
 // Marketplace code mapping
 const MARKETPLACE_MAP = {
