@@ -58,9 +58,76 @@ router.get('/:clientCode/dashboard', authenticate, clientIsolation, checkClientA
       GROUP BY client_decision
     `, [clientId]);
 
+    // Receiving stats: orders pending receiving count (awaiting + partial status)
+    const receivingStats = await db.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE receiving_status = 'awaiting') as orders_awaiting,
+        COUNT(*) FILTER (WHERE receiving_status = 'partial') as orders_partial,
+        COUNT(*) FILTER (WHERE receiving_status IN ('awaiting', 'partial')) as orders_pending_total,
+        COALESCE(SUM(received_damaged_units), 0)::integer as total_damaged_units,
+        COUNT(*) FILTER (WHERE received_damaged_units > 0) as orders_with_damage
+      FROM warehouse_orders
+      WHERE client_id = $1
+    `, [clientId]);
+
+    // Recent receiving activity (last 10 entries from receiving_log)
+    const recentReceiving = await db.query(`
+      SELECT
+        rl.id,
+        rl.receiving_id,
+        rl.receiving_date,
+        rl.warehouse_order_id,
+        rl.warehouse_order_line_id,
+        rl.purchase_order_no,
+        rl.vendor,
+        rl.sku,
+        rl.asin,
+        rl.product_title,
+        rl.received_good_units,
+        rl.received_damaged_units,
+        rl.sellable_units,
+        rl.tracking_number,
+        rl.notes,
+        rl.receiver_name,
+        wo.receiving_status
+      FROM receiving_log rl
+      LEFT JOIN warehouse_orders wo ON rl.warehouse_order_id = wo.id
+      WHERE rl.client_id = $1
+      ORDER BY rl.receiving_date DESC
+      LIMIT 10
+    `, [clientId]);
+
+    // Order status breakdown (count by receiving_status)
+    const orderStatusBreakdown = await db.query(`
+      SELECT
+        receiving_status as status,
+        COUNT(*) as count
+      FROM warehouse_orders
+      WHERE client_id = $1
+      GROUP BY receiving_status
+      ORDER BY
+        CASE
+          WHEN receiving_status = 'awaiting' THEN 1
+          WHEN receiving_status = 'partial' THEN 2
+          WHEN receiving_status = 'complete' THEN 3
+          WHEN receiving_status = 'extra_units' THEN 4
+          WHEN receiving_status = 'cancelled' THEN 5
+          ELSE 6
+        END
+    `, [clientId]);
+
     res.json({
       ...stats.rows[0],
-      decision_breakdown: decisionBreakdown.rows
+      decision_breakdown: decisionBreakdown.rows,
+      receiving_stats: receivingStats.rows[0] || {
+        orders_awaiting: 0,
+        orders_partial: 0,
+        orders_pending_total: 0,
+        total_damaged_units: 0,
+        orders_with_damage: 0
+      },
+      recent_receiving: recentReceiving.rows,
+      order_status_breakdown: orderStatusBreakdown.rows
     });
   } catch (error) {
     next(error);

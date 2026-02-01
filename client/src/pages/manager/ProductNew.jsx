@@ -2,15 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Layout from '../../components/Layout'
 import { createProduct, getClients, getMarketplaces } from '../../api'
-
-const managerNavItems = [
-  { to: '/manager', label: 'Dashboard' },
-  { to: '/manager/import', label: 'Import' },
-  { to: '/manager/locations', label: 'Locations' },
-  { to: '/manager/products', label: 'Products' },
-  { to: '/manager/users', label: 'Users' },
-  { to: '/manager/returns', label: 'Returns' }
-]
+import { managerNavItems } from '../../config/managerNav'
 
 export default function ManagerProductNew() {
   const navigate = useNavigate()

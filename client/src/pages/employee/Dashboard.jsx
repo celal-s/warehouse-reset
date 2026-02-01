@@ -169,7 +169,7 @@ export default function EmployeeDashboard() {
           <div className="px-6 py-4 border-b flex justify-between items-center">
             <h2 className="text-lg font-medium text-gray-900">Recent Receiving</h2>
             <Link
-              to="/employee/orders"
+              to="/employee/receiving?mode=history"
               className="text-sm text-blue-600 hover:text-blue-800"
             >
               View all

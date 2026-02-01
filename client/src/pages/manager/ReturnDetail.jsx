@@ -2,15 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import Layout from '../../components/Layout'
 import { getReturn, updateReturn, shipReturn, completeReturn } from '../../api'
-
-const managerNavItems = [
-  { to: '/manager', label: 'Dashboard' },
-  { to: '/manager/import', label: 'Import' },
-  { to: '/manager/locations', label: 'Locations' },
-  { to: '/manager/products', label: 'Products' },
-  { to: '/manager/users', label: 'Users' },
-  { to: '/manager/returns', label: 'Returns' }
-]
+import { managerNavItems } from '../../config/managerNav'
 
 const statusColors = {
   pending: 'bg-yellow-100 text-yellow-800',

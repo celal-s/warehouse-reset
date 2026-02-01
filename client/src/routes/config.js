@@ -20,6 +20,9 @@ import ClientItemDetail from '../pages/client/ItemDetail'
 import ClientProducts from '../pages/client/Products'
 import ClientProductDetail from '../pages/client/ProductDetail'
 import ManagerDashboard from '../pages/manager/Dashboard'
+import ManagerReceiving from '../pages/manager/Receiving'
+import ManagerOrders from '../pages/manager/Orders'
+import ManagerClients from '../pages/manager/Clients'
 import ManagerImport from '../pages/manager/Import'
 import ManagerLocations from '../pages/manager/Locations'
 import ManagerProducts from '../pages/manager/Products'
@@ -155,6 +158,16 @@ export const routeConfig = [
         description: 'Manager dashboard'
       },
       {
+        path: '/manager/receiving',
+        component: ManagerReceiving,
+        description: 'Receiving history'
+      },
+      {
+        path: '/manager/orders',
+        component: ManagerOrders,
+        description: 'All warehouse orders'
+      },
+      {
         path: '/manager/import',
         component: ManagerImport,
         description: 'Import products'
@@ -209,6 +222,11 @@ export const routeConfig = [
         component: ManagerInventoryDetail,
         description: 'Inventory item details',
         roles: ['employee', 'manager', 'admin']
+      },
+      {
+        path: '/manager/clients',
+        component: ManagerClients,
+        description: 'Client management'
       }
     ]
   },

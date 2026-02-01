@@ -1,15 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Layout from '../../components/Layout'
 import { getClients, getMarketplaces, importProducts } from '../../api'
-
-const managerNavItems = [
-  { to: '/manager', label: 'Dashboard' },
-  { to: '/manager/import', label: 'Import' },
-  { to: '/manager/locations', label: 'Locations' },
-  { to: '/manager/products', label: 'Products' },
-  { to: '/manager/users', label: 'Users' },
-  { to: '/manager/returns', label: 'Returns' }
-]
+import { managerNavItems } from '../../config/managerNav'
 
 export default function ManagerImport() {
   const fileInputRef = useRef(null)

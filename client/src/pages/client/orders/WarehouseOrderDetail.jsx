@@ -280,7 +280,7 @@ export default function WarehouseOrderDetail() {
       {/* Receiving History */}
       <div className="mt-6">
         <Card title="Receiving History">
-          <ReceivingHistoryTable entries={order?.receiving_entries || []} />
+          <ReceivingHistoryTable entries={order?.receiving_history || []} />
         </Card>
       </div>
     </Layout>

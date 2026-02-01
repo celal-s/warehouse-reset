@@ -3,15 +3,7 @@ import Layout from '../../components/Layout'
 import { DataTable } from '../../components/DataTable'
 import { Button, Alert, StatusBadge, Badge } from '../../components/ui'
 import { getLocations, createLocation, deleteLocation } from '../../api'
-
-const managerNavItems = [
-  { to: '/manager', label: 'Dashboard' },
-  { to: '/manager/import', label: 'Import' },
-  { to: '/manager/locations', label: 'Locations' },
-  { to: '/manager/products', label: 'Products' },
-  { to: '/manager/users', label: 'Users' },
-  { to: '/manager/returns', label: 'Returns' }
-]
+import { managerNavItems } from '../../config/managerNav'
 
 export default function ManagerLocations() {
   const [locations, setLocations] = useState([])

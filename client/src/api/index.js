@@ -356,3 +356,8 @@ export const getEmployeeDashboard = () => request('/warehouse-orders/employee/da
 
 export const getTodaysReceiving = (clientId) =>
   request(`/warehouse-orders/todays-receiving${clientId ? `?client_id=${clientId}` : ''}`)
+
+export const getReceivingHistory = (filters = {}) => {
+  const params = new URLSearchParams(filters);
+  return request(`/warehouse-orders/receiving-history?${params}`);
+}

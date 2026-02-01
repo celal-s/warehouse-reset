@@ -560,6 +560,85 @@ employeeRoutes.get('/todays-receiving', async (req, res, next) => {
 });
 
 /**
+ * GET /receiving-history - Get paginated receiving history
+ * Query params: page, limit, client_id (optional), start_date, end_date
+ */
+employeeRoutes.get('/receiving-history', async (req, res, next) => {
+  try {
+    const { page = 1, limit = 50, client_id, start_date, end_date } = req.query;
+
+    let sql = `
+      SELECT
+        rl.id,
+        rl.receiving_id,
+        rl.receiving_date,
+        rl.product_title,
+        rl.sku,
+        rl.asin,
+        rl.received_good_units,
+        rl.received_damaged_units,
+        rl.sellable_units,
+        rl.tracking_number,
+        rl.notes,
+        rl.receiver_name,
+        c.client_code,
+        c.name as client_name,
+        wo.warehouse_order_line_id
+      FROM receiving_log rl
+      JOIN clients c ON rl.client_id = c.id
+      LEFT JOIN warehouse_orders wo ON rl.warehouse_order_id = wo.id
+      WHERE 1=1
+    `;
+
+    const params = [];
+    let paramIndex = 1;
+
+    if (client_id) {
+      sql += ` AND rl.client_id = $${paramIndex}`;
+      params.push(client_id);
+      paramIndex++;
+    }
+
+    if (start_date) {
+      sql += ` AND rl.receiving_date >= $${paramIndex}`;
+      params.push(start_date);
+      paramIndex++;
+    }
+
+    if (end_date) {
+      sql += ` AND rl.receiving_date <= $${paramIndex}`;
+      params.push(end_date);
+      paramIndex++;
+    }
+
+    // Get total count
+    const countSql = sql.replace(/SELECT[\s\S]*?FROM/, 'SELECT COUNT(*) FROM');
+    const countResult = await db.query(countSql, params);
+    const totalCount = parseInt(countResult.rows[0].count);
+
+    // Add pagination
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    sql += ` ORDER BY rl.receiving_date DESC, rl.id DESC`;
+    sql += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(parseInt(limit), offset);
+
+    const result = await db.query(sql, params);
+
+    res.json({
+      entries: result.rows,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * GET /employee/dashboard - Employee dashboard stats
  * NOTE: This route must be defined before /:id to avoid being caught by the param route
  */

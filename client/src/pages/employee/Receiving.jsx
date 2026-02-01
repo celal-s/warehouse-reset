@@ -1,12 +1,17 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import Layout from '../../components/Layout'
 import ScannerInput from '../../components/scanner/ScannerInput'
 import PhotoUpload from '../../components/upload/PhotoUpload'
-import { scanUPC, searchProducts, getClients, getLocations, receiveInventory } from '../../api'
+import { scanUPC, searchProducts, getClients, getLocations, receiveInventory, getReceivingHistory } from '../../api'
 import { employeeNavItems } from '../../config/employeeNav'
 
 export default function EmployeeReceiving() {
+  const [searchParams] = useSearchParams()
+  const [viewMode, setViewMode] = useState(searchParams.get('mode') === 'history' ? 'history' : 'receive')
+  const [receivingHistory, setReceivingHistory] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+
   const [product, setProduct] = useState(null)
   const [clients, setClients] = useState([])
   const [locations, setLocations] = useState([])
@@ -41,6 +46,24 @@ export default function EmployeeReceiving() {
       })
       .catch(console.error)
   }, [])
+
+  useEffect(() => {
+    if (viewMode === 'history') {
+      loadReceivingHistory()
+    }
+  }, [viewMode])
+
+  const loadReceivingHistory = async () => {
+    setHistoryLoading(true)
+    try {
+      const data = await getReceivingHistory()
+      setReceivingHistory(data.entries || [])
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
 
   const handleScan = async (upc) => {
     setLoading(true)
@@ -158,17 +181,43 @@ export default function EmployeeReceiving() {
 
   return (
     <Layout title="Receive Inventory" navItems={employeeNavItems}>
-      {/* Success message */}
-      {success && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <div className="flex items-center gap-2 text-green-700">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            {success}
-          </div>
-        </div>
-      )}
+      {/* Mode Toggle */}
+      <div className="flex gap-2 mb-6">
+        <button
+          onClick={() => setViewMode('receive')}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            viewMode === 'receive'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+        >
+          Receive New
+        </button>
+        <button
+          onClick={() => setViewMode('history')}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            viewMode === 'history'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+        >
+          View History
+        </button>
+      </div>
+
+      {viewMode === 'receive' ? (
+        <>
+          {/* Success message */}
+          {success && (
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center gap-2 text-green-700">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                {success}
+              </div>
+            </div>
+          )}
 
       {/* Scanner Input */}
       <div className="bg-white rounded-lg shadow p-6 mb-6">
@@ -458,6 +507,53 @@ export default function EmployeeReceiving() {
               Receive Inventory
             </button>
           </div>
+        </div>
+      )}
+        </>
+      ) : (
+        // History view
+        <div className="bg-white rounded-lg shadow">
+          <div className="px-6 py-4 border-b">
+            <h2 className="text-lg font-medium text-gray-900">Receiving History</h2>
+          </div>
+          {historyLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            </div>
+          ) : receivingHistory.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">No receiving history found</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Good</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Damaged</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {receivingHistory.map((entry) => (
+                    <tr key={entry.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-sm font-mono text-gray-900">{entry.receiving_id}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {new Date(entry.receiving_date).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">{entry.client_code}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">{entry.product_title}</td>
+                      <td className="px-6 py-4 text-sm text-green-600 font-medium">+{entry.received_good_units}</td>
+                      <td className="px-6 py-4 text-sm text-red-600">
+                        {entry.received_damaged_units > 0 ? `-${entry.received_damaged_units}` : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </Layout>

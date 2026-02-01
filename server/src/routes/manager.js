@@ -690,4 +690,195 @@ router.delete('/users/:id', authenticate, authorize('manager', 'admin'), async (
   }
 });
 
+// ==================== MANAGER ALL-CLIENTS VIEW ====================
+
+// Get all clients with quick stats
+router.get('/clients', authenticate, authorize('manager', 'admin'), async (req, res, next) => {
+  try {
+    const result = await db.query(`
+      SELECT
+        c.id,
+        c.client_code,
+        c.name,
+        c.created_at,
+        COALESCE(wo_stats.total_orders, 0)::integer as total_orders,
+        COALESCE(wo_stats.pending_orders, 0)::integer as pending_orders,
+        COALESCE(wo_stats.received_units, 0)::integer as received_units,
+        COALESCE(wo_stats.damaged_units, 0)::integer as damaged_units
+      FROM clients c
+      LEFT JOIN LATERAL (
+        SELECT
+          COUNT(*) as total_orders,
+          COUNT(*) FILTER (WHERE receiving_status IN ('awaiting', 'partial')) as pending_orders,
+          COALESCE(SUM(received_good_units), 0) as received_units,
+          COALESCE(SUM(received_damaged_units), 0) as damaged_units
+        FROM warehouse_orders wo
+        WHERE wo.client_id = c.id
+      ) wo_stats ON true
+      ORDER BY c.client_code
+    `);
+
+    res.json({ clients: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get all warehouse orders across clients (paginated)
+router.get('/orders', authenticate, authorize('manager', 'admin'), async (req, res, next) => {
+  try {
+    const { page = 1, limit = 50, client_id, status, search } = req.query;
+
+    let sql = `
+      SELECT
+        wo.id,
+        wo.warehouse_order_line_id,
+        wo.warehouse_order_date,
+        wo.purchase_order_no,
+        wo.vendor,
+        wo.sku,
+        wo.asin,
+        wo.product_title,
+        wo.expected_single_units,
+        wo.receiving_status,
+        wo.received_good_units,
+        wo.received_damaged_units,
+        wo.created_at,
+        c.client_code,
+        c.name as client_name
+      FROM warehouse_orders wo
+      JOIN clients c ON wo.client_id = c.id
+      WHERE 1=1
+    `;
+
+    const params = [];
+    let paramIndex = 1;
+
+    if (client_id) {
+      sql += ` AND wo.client_id = $${paramIndex}`;
+      params.push(client_id);
+      paramIndex++;
+    }
+
+    if (status) {
+      sql += ` AND wo.receiving_status = $${paramIndex}`;
+      params.push(status);
+      paramIndex++;
+    }
+
+    if (search) {
+      sql += ` AND (
+        wo.product_title ILIKE $${paramIndex} OR
+        wo.sku ILIKE $${paramIndex} OR
+        wo.asin ILIKE $${paramIndex} OR
+        wo.purchase_order_no ILIKE $${paramIndex} OR
+        wo.warehouse_order_line_id ILIKE $${paramIndex}
+      )`;
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    // Get total count
+    const countSql = sql.replace(/SELECT[\s\S]*?FROM/, 'SELECT COUNT(*) FROM');
+    const countResult = await db.query(countSql, params);
+    const totalCount = parseInt(countResult.rows[0].count);
+
+    // Add pagination
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    sql += ` ORDER BY wo.warehouse_order_date DESC, wo.id DESC`;
+    sql += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(parseInt(limit), offset);
+
+    const result = await db.query(sql, params);
+
+    res.json({
+      orders: result.rows,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get all receiving entries across clients (paginated)
+router.get('/receiving', authenticate, authorize('manager', 'admin'), async (req, res, next) => {
+  try {
+    const { page = 1, limit = 50, client_id, start_date, end_date } = req.query;
+
+    let sql = `
+      SELECT
+        rl.id,
+        rl.receiving_id,
+        rl.receiving_date,
+        rl.product_title,
+        rl.sku,
+        rl.asin,
+        rl.received_good_units,
+        rl.received_damaged_units,
+        rl.sellable_units,
+        rl.tracking_number,
+        rl.notes,
+        rl.receiver_name,
+        c.client_code,
+        c.name as client_name,
+        wo.warehouse_order_line_id
+      FROM receiving_log rl
+      JOIN clients c ON rl.client_id = c.id
+      LEFT JOIN warehouse_orders wo ON rl.warehouse_order_id = wo.id
+      WHERE 1=1
+    `;
+
+    const params = [];
+    let paramIndex = 1;
+
+    if (client_id) {
+      sql += ` AND rl.client_id = $${paramIndex}`;
+      params.push(client_id);
+      paramIndex++;
+    }
+
+    if (start_date) {
+      sql += ` AND rl.receiving_date >= $${paramIndex}`;
+      params.push(start_date);
+      paramIndex++;
+    }
+
+    if (end_date) {
+      sql += ` AND rl.receiving_date <= $${paramIndex}`;
+      params.push(end_date);
+      paramIndex++;
+    }
+
+    // Get total count
+    const countSql = sql.replace(/SELECT[\s\S]*?FROM/, 'SELECT COUNT(*) FROM');
+    const countResult = await db.query(countSql, params);
+    const totalCount = parseInt(countResult.rows[0].count);
+
+    // Add pagination
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    sql += ` ORDER BY rl.receiving_date DESC, rl.id DESC`;
+    sql += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(parseInt(limit), offset);
+
+    const result = await db.query(sql, params);
+
+    res.json({
+      entries: result.rows,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

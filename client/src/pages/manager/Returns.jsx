@@ -4,15 +4,7 @@ import Layout from '../../components/Layout'
 import { DataTable, DataTableToolbar, useDataTable } from '../../components/DataTable'
 import { Button, Alert, Badge, StatusBadge } from '../../components/ui'
 import { getReturns, completeReturn } from '../../api'
-
-const managerNavItems = [
-  { to: '/manager', label: 'Dashboard' },
-  { to: '/manager/import', label: 'Import' },
-  { to: '/manager/locations', label: 'Locations' },
-  { to: '/manager/products', label: 'Products' },
-  { to: '/manager/users', label: 'Users' },
-  { to: '/manager/returns', label: 'Returns' }
-]
+import { managerNavItems } from '../../config/managerNav'
 
 const statusOptions = [
   { value: '', label: 'All Statuses' },
