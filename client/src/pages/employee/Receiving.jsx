@@ -4,8 +4,9 @@ import Layout from '../../components/Layout'
 import ScannerInput from '../../components/scanner/ScannerInput'
 import PhotoUpload from '../../components/upload/PhotoUpload'
 import { scanUPC, searchProducts, getClients, getLocations, receiveInventory } from '../../api'
+import { employeeNavItems } from '../../config/employeeNav'
 
-export default function EmployeeScan() {
+export default function EmployeeReceiving() {
   const [product, setProduct] = useState(null)
   const [clients, setClients] = useState([])
   const [locations, setLocations] = useState([])
@@ -155,14 +156,8 @@ export default function EmployeeScan() {
     }
   }
 
-  const navItems = [
-    { to: '/employee/scan', label: 'Scan' },
-    { to: '/employee/sort', label: 'Sort' },
-    { to: '/employee/returns', label: 'Returns' }
-  ]
-
   return (
-    <Layout title="Receive Inventory" navItems={navItems}>
+    <Layout title="Receive Inventory" navItems={employeeNavItems}>
       {/* Success message */}
       {success && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">

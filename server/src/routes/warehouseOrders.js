@@ -869,6 +869,107 @@ employeeRoutes.post('/:id/receive', async (req, res, next) => {
   }
 });
 
+/**
+ * GET /todays-receiving - Today's receiving entries
+ * Query params: client_id (optional filter)
+ */
+employeeRoutes.get('/todays-receiving', async (req, res, next) => {
+  try {
+    const { client_id } = req.query;
+    let sql = `
+      SELECT rl.id, rl.receiving_id, rl.receiving_date, rl.product_title,
+             rl.sku, rl.received_good_units, rl.received_damaged_units,
+             rl.sellable_units, c.client_code, wo.warehouse_order_line_id
+      FROM receiving_log rl
+      JOIN clients c ON rl.client_id = c.id
+      LEFT JOIN warehouse_orders wo ON rl.warehouse_order_id = wo.id
+      WHERE rl.receiving_date::date = CURRENT_DATE
+    `;
+    const params = [];
+    if (client_id) {
+      sql += ` AND rl.client_id = $1`;
+      params.push(client_id);
+    }
+    sql += ` ORDER BY rl.receiving_date DESC LIMIT 20`;
+
+    const result = await db.query(sql, params);
+    res.json({ entries: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /employee/dashboard - Employee dashboard stats
+ */
+employeeRoutes.get('/employee/dashboard', async (req, res, next) => {
+  try {
+    // Pending orders count (awaiting + partial)
+    const pendingOrdersResult = await db.query(`
+      SELECT COUNT(*) as count
+      FROM warehouse_orders
+      WHERE receiving_status IN ('awaiting', 'partial')
+    `);
+
+    // Today's receiving stats
+    const todaysReceivingResult = await db.query(`
+      SELECT
+        COUNT(*) as entries_count,
+        COALESCE(SUM(received_good_units), 0) as good_units,
+        COALESCE(SUM(received_damaged_units), 0) as damaged_units
+      FROM receiving_log
+      WHERE receiving_date::date = CURRENT_DATE
+    `);
+
+    // Pending returns count
+    const pendingReturnsResult = await db.query(`
+      SELECT COUNT(*) as count
+      FROM returns
+      WHERE status IN ('pending', 'matched')
+    `);
+
+    // Recent receiving entries (last 10)
+    const recentReceivingResult = await db.query(`
+      SELECT rl.id, rl.receiving_id, rl.receiving_date, rl.product_title,
+             rl.sku, rl.received_good_units, rl.received_damaged_units,
+             rl.sellable_units, c.client_code
+      FROM receiving_log rl
+      JOIN clients c ON rl.client_id = c.id
+      ORDER BY rl.receiving_date DESC
+      LIMIT 10
+    `);
+
+    // Orders by client breakdown (awaiting/partial/complete counts)
+    const ordersByClientResult = await db.query(`
+      SELECT
+        c.client_code,
+        c.name as client_name,
+        COUNT(*) FILTER (WHERE wo.receiving_status = 'awaiting') as awaiting_count,
+        COUNT(*) FILTER (WHERE wo.receiving_status = 'partial') as partial_count,
+        COUNT(*) FILTER (WHERE wo.receiving_status = 'complete') as complete_count
+      FROM clients c
+      LEFT JOIN warehouse_orders wo ON c.id = wo.client_id
+      GROUP BY c.id, c.client_code, c.name
+      HAVING COUNT(wo.id) > 0
+      ORDER BY c.client_code
+    `);
+
+    res.json({
+      pendingOrders: parseInt(pendingOrdersResult.rows[0].count),
+      todaysReceiving: {
+        entriesCount: parseInt(todaysReceivingResult.rows[0].entries_count),
+        goodUnits: parseInt(todaysReceivingResult.rows[0].good_units),
+        damagedUnits: parseInt(todaysReceivingResult.rows[0].damaged_units)
+      },
+      pendingReturns: parseInt(pendingReturnsResult.rows[0].count),
+      recentReceiving: recentReceivingResult.rows,
+      ordersByClient: ordersByClientResult.rows
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 
 // ============================================================================
 // ADMIN IMPORT ROUTES - /api/warehouse-orders/import

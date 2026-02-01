@@ -350,3 +350,9 @@ export const addReceivingPhoto = (receivingId, photoUrl, receivingLogId = null, 
 
 export const getReceivingPhotos = (receivingId) =>
   request(`/warehouse-orders/receiving-photos/${receivingId}`);
+
+// Employee Dashboard
+export const getEmployeeDashboard = () => request('/warehouse-orders/employee/dashboard')
+
+export const getTodaysReceiving = (clientId) =>
+  request(`/warehouse-orders/todays-receiving${clientId ? `?client_id=${clientId}` : ''}`)

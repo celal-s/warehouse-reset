@@ -10,9 +10,10 @@
 // Page component imports (lazy-loaded for code splitting if needed)
 import Home from '../pages/Home'
 import Login from '../pages/Login'
-import EmployeeScan from '../pages/employee/Scan'
-import EmployeeSort from '../pages/employee/Sort'
+import EmployeeDashboard from '../pages/employee/Dashboard'
+import EmployeeReceiving from '../pages/employee/Receiving'
 import EmployeeReturns from '../pages/employee/Returns'
+import EmployeeOrderReceiving from '../pages/employee/OrderReceiving'
 import ClientDashboard from '../pages/client/Dashboard'
 import ClientInventory from '../pages/client/Inventory'
 import ClientItemDetail from '../pages/client/ItemDetail'
@@ -41,7 +42,6 @@ import AdminNavigation from '../pages/admin/Navigation'
 import WarehouseOrders from '../pages/client/orders/WarehouseOrders'
 import WarehouseOrderDetail from '../pages/client/orders/WarehouseOrderDetail'
 import WarehouseOrderNew from '../pages/client/orders/WarehouseOrderNew'
-import OrderReceiving from '../pages/employee/OrderReceiving'
 
 /**
  * Route configuration organized by section
@@ -78,24 +78,24 @@ export const routeConfig = [
     roles: ['employee', 'manager', 'admin'],
     routes: [
       {
-        path: '/employee/scan',
-        component: EmployeeScan,
-        description: 'Scan products'
+        path: '/employee',
+        component: EmployeeDashboard,
+        description: 'Employee dashboard'
       },
       {
-        path: '/employee/sort',
-        component: EmployeeSort,
-        description: 'Sort inventory'
+        path: '/employee/receiving',
+        component: EmployeeReceiving,
+        description: 'Receive inventory'
+      },
+      {
+        path: '/employee/orders',
+        component: EmployeeOrderReceiving,
+        description: 'Order receiving'
       },
       {
         path: '/employee/returns',
         component: EmployeeReturns,
         description: 'Process returns'
-      },
-      {
-        path: '/employee/receiving',
-        component: OrderReceiving,
-        description: 'Order receiving'
       }
     ]
   },

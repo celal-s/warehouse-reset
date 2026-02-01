@@ -2,12 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import Layout from '../../components/Layout'
 import { getReturns, shipReturn } from '../../api'
-
-const employeeNavItems = [
-  { to: '/employee/scan', label: 'Scan' },
-  { to: '/employee/sort', label: 'Sort' },
-  { to: '/employee/returns', label: 'Returns' }
-]
+import { employeeNavItems } from '../../config/employeeNav'
 
 // Calculate urgency based on return_by_date
 function getUrgency(returnByDate) {

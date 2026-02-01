@@ -2,14 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import Layout from '../../components/Layout'
 import { OrderStatusBadge, OrderProgressBar } from '../../components/orders'
 import ReceivingPhotoSection from '../../components/upload/ReceivingPhotoSection'
-import { getClients, searchOrdersForReceiving, getOrderForReceiving, submitOrderReceiving, addReceivingPhoto } from '../../api'
-
-const employeeNavItems = [
-  { to: '/employee/scan', label: 'Scan' },
-  { to: '/employee/sort', label: 'Sort' },
-  { to: '/employee/returns', label: 'Returns' },
-  { to: '/employee/receiving', label: 'Receiving' }
-]
+import { getClients, searchOrdersForReceiving, getOrderForReceiving, submitOrderReceiving, addReceivingPhoto, getTodaysReceiving } from '../../api'
+import { employeeNavItems } from '../../config/employeeNav'
 
 export default function OrderReceiving() {
   const [clients, setClients] = useState([])
@@ -35,8 +29,21 @@ export default function OrderReceiving() {
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [receivingResult, setReceivingResult] = useState(null)
 
+  // Recent receiving state
+  const [recentReceiving, setRecentReceiving] = useState([])
+
+  const loadRecentReceiving = async () => {
+    try {
+      const data = await getTodaysReceiving()
+      setRecentReceiving(data.entries || [])
+    } catch (err) {
+      console.error('Failed to load recent receiving:', err)
+    }
+  }
+
   useEffect(() => {
     loadClients()
+    loadRecentReceiving()
   }, [])
 
   const loadClients = async () => {
@@ -165,8 +172,9 @@ export default function OrderReceiving() {
       setCapturedPhotos([])
       setTempReceivingId(generateTempReceivingId())
 
-      // Refresh search results
+      // Refresh search results and recent receiving
       handleSearch()
+      loadRecentReceiving()
     } catch (err) {
       setError(err.message)
     } finally {
@@ -421,6 +429,29 @@ export default function OrderReceiving() {
                     {submitting ? 'Submitting...' : 'Submit Receiving'}
                   </button>
                 </form>
+              </div>
+
+              {/* Recently Received */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Recently Received</h3>
+                {recentReceiving.length === 0 ? (
+                  <p className="text-gray-500 text-sm">No receiving entries today</p>
+                ) : (
+                  <div className="space-y-3">
+                    {recentReceiving.map(entry => (
+                      <div key={entry.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-gray-900 truncate">{entry.product_title}</div>
+                          <div className="text-xs text-gray-500">{entry.receiving_id} | {new Date(entry.receiving_date).toLocaleTimeString()}</div>
+                        </div>
+                        <div className="text-right ml-4">
+                          <div className="text-green-600 font-medium">+{entry.received_good_units}</div>
+                          {entry.received_damaged_units > 0 && <div className="text-red-500 text-sm">-{entry.received_damaged_units} dmg</div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </>
           ) : (
