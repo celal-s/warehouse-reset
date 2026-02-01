@@ -812,4 +812,427 @@ employeeRoutes.post('/:id/receive', async (req, res, next) => {
 });
 
 
-module.exports = { clientRoutes, employeeRoutes };
+// ============================================================================
+// ADMIN IMPORT ROUTES - /api/warehouse-orders/import
+// ============================================================================
+
+const importRoutes = express.Router();
+
+// Admin-only import endpoints (or use a secret key for automation)
+importRoutes.use((req, res, next) => {
+  const importSecret = req.headers['x-import-secret'];
+  const validSecret = process.env.IMPORT_SECRET || 'warehouse-import-2025';
+
+  if (importSecret !== validSecret) {
+    return res.status(401).json({ error: 'Invalid import secret' });
+  }
+  next();
+});
+
+/**
+ * POST /cleanup - Clean up test data before import
+ */
+importRoutes.post('/cleanup', async (req, res, next) => {
+  try {
+    const results = {};
+
+    // Delete receiving log entries for test orders
+    const receivingResult = await db.query(`
+      DELETE FROM receiving_log
+      WHERE warehouse_order_id IN (
+        SELECT id FROM warehouse_orders
+        WHERE warehouse_order_line_id IN ('561_0000001', '561_0000002')
+      )
+      RETURNING id
+    `);
+    results.receivingDeleted = receivingResult.rowCount;
+
+    // Delete test warehouse orders
+    const ordersResult = await db.query(`
+      DELETE FROM warehouse_orders
+      WHERE warehouse_order_line_id IN ('561_0000001', '561_0000002')
+      RETURNING id
+    `);
+    results.ordersDeleted = ordersResult.rowCount;
+
+    // Delete client order sequences
+    const sequencesResult = await db.query(`
+      DELETE FROM client_order_sequences
+      RETURNING client_id
+    `);
+    results.sequencesDeleted = sequencesResult.rowCount;
+
+    res.json({
+      message: 'Cleanup complete',
+      results
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /warehouse-orders - Import warehouse orders from JSON payload
+ * Body: { orders: [...], clientCode: "561" }
+ */
+importRoutes.post('/warehouse-orders', async (req, res, next) => {
+  try {
+    const { orders, clientCode } = req.body;
+
+    if (!orders || !Array.isArray(orders)) {
+      return res.status(400).json({ error: 'orders array is required' });
+    }
+
+    if (!clientCode) {
+      return res.status(400).json({ error: 'clientCode is required' });
+    }
+
+    // Get client ID
+    const clientResult = await db.query(
+      'SELECT id, client_code FROM clients WHERE client_code = $1',
+      [clientCode]
+    );
+    if (clientResult.rows.length === 0) {
+      return res.status(404).json({ error: `Client ${clientCode} not found` });
+    }
+    const clientId = clientResult.rows[0].id;
+
+    // Get marketplace IDs
+    const marketplaceResult = await db.query('SELECT id, code FROM marketplaces');
+    const marketplaceMap = {};
+    for (const row of marketplaceResult.rows) {
+      marketplaceMap[row.code.toLowerCase()] = row.id;
+    }
+
+    let imported = 0;
+    let skipped = 0;
+    let errors = 0;
+    let maxSequence = 0;
+    const errorMessages = [];
+
+    for (const order of orders) {
+      try {
+        const warehouseOrderLineId = order.warehouse_order_line_id;
+        if (!warehouseOrderLineId) {
+          skipped++;
+          continue;
+        }
+
+        // Track max sequence
+        const parts = warehouseOrderLineId.split('_');
+        if (parts.length === 2) {
+          const seq = parseInt(parts[1], 10) || 0;
+          if (seq > maxSequence) maxSequence = seq;
+        }
+
+        // Check if already exists
+        const existing = await db.query(
+          'SELECT id FROM warehouse_orders WHERE warehouse_order_line_id = $1',
+          [warehouseOrderLineId]
+        );
+        if (existing.rows.length > 0) {
+          skipped++;
+          continue;
+        }
+
+        // Get marketplace ID
+        const marketplaceCode = order.marketplace_code?.toLowerCase();
+        const marketplaceId = marketplaceCode ? marketplaceMap[marketplaceCode] : null;
+
+        await db.query(`
+          INSERT INTO warehouse_orders (
+            warehouse_order_line_id,
+            client_id,
+            warehouse_order_date,
+            purchase_order_date,
+            purchase_order_no,
+            vendor,
+            marketplace_id,
+            sku,
+            asin,
+            product_title,
+            is_hazmat,
+            photo_link,
+            selling_bundle_count,
+            purchase_bundle_count,
+            purchase_order_quantity,
+            expected_single_units,
+            expected_sellable_units,
+            total_cost,
+            unit_cost,
+            notes_to_warehouse,
+            receiving_status,
+            received_good_units,
+            received_damaged_units,
+            received_sellable_units,
+            first_received_date,
+            last_received_date,
+            warehouse_notes
+          ) VALUES ($1, $2, CURRENT_TIMESTAMP, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+        `, [
+          warehouseOrderLineId,
+          clientId,
+          order.purchase_order_date || null,
+          order.purchase_order_no || null,
+          order.vendor || null,
+          marketplaceId,
+          order.sku || null,
+          order.asin || null,
+          order.product_title,
+          order.is_hazmat || false,
+          order.photo_link || null,
+          order.selling_bundle_count || 1,
+          order.purchase_bundle_count || 1,
+          order.purchase_order_quantity || 0,
+          order.expected_single_units || 0,
+          order.expected_sellable_units || 0,
+          order.total_cost || null,
+          order.unit_cost || null,
+          order.notes_to_warehouse || null,
+          order.receiving_status || 'awaiting',
+          order.received_good_units || 0,
+          order.received_damaged_units || 0,
+          order.received_sellable_units || 0,
+          order.first_received_date || null,
+          order.last_received_date || null,
+          order.warehouse_notes || null
+        ]);
+
+        imported++;
+      } catch (err) {
+        errors++;
+        if (errorMessages.length < 5) {
+          errorMessages.push(err.message);
+        }
+      }
+    }
+
+    // Update sequence
+    if (maxSequence > 0) {
+      const nextSequence = maxSequence + 1;
+      await db.query(`
+        INSERT INTO client_order_sequences (client_id, next_sequence)
+        VALUES ($1, $2)
+        ON CONFLICT (client_id)
+        DO UPDATE SET next_sequence = GREATEST(client_order_sequences.next_sequence, $2)
+      `, [clientId, nextSequence]);
+    }
+
+    res.json({
+      message: 'Import complete',
+      results: { imported, skipped, errors, maxSequence },
+      errorSamples: errorMessages
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /receiving-log - Import receiving log from JSON payload
+ * Body: { entries: [...] }
+ */
+importRoutes.post('/receiving-log', async (req, res, next) => {
+  try {
+    const { entries } = req.body;
+
+    if (!entries || !Array.isArray(entries)) {
+      return res.status(400).json({ error: 'entries array is required' });
+    }
+
+    // Get all clients for lookup
+    const clientResult = await db.query('SELECT id, client_code FROM clients');
+    const clientMap = {};
+    for (const row of clientResult.rows) {
+      clientMap[row.client_code] = row.id;
+    }
+
+    // Get all users for receiver lookup
+    const userResult = await db.query('SELECT id, email, name FROM users');
+    const userMapByEmail = {};
+    for (const row of userResult.rows) {
+      userMapByEmail[row.email.toLowerCase()] = { id: row.id, name: row.name };
+    }
+
+    // Get all warehouse orders for linking
+    const ordersResult = await db.query('SELECT id, warehouse_order_line_id FROM warehouse_orders');
+    const orderMap = {};
+    for (const row of ordersResult.rows) {
+      orderMap[row.warehouse_order_line_id] = row.id;
+    }
+
+    let imported = 0;
+    let skipped = 0;
+    let errors = 0;
+    let linkedToOrders = 0;
+    const errorMessages = [];
+
+    for (const entry of entries) {
+      try {
+        const receivingId = entry.receiving_id;
+        if (!receivingId || !receivingId.startsWith('RCV')) {
+          skipped++;
+          continue;
+        }
+
+        // Check if already exists
+        const existing = await db.query(
+          'SELECT id FROM receiving_log WHERE receiving_id = $1',
+          [receivingId]
+        );
+        if (existing.rows.length > 0) {
+          skipped++;
+          continue;
+        }
+
+        // Look up client_id
+        const clientId = clientMap[entry.client_code];
+        if (!clientId) {
+          errors++;
+          if (errorMessages.length < 5) {
+            errorMessages.push(`Unknown client_code: ${entry.client_code}`);
+          }
+          continue;
+        }
+
+        // Look up warehouse_order_id
+        const warehouseOrderId = entry.warehouse_order_line_id ? orderMap[entry.warehouse_order_line_id] : null;
+        if (warehouseOrderId) linkedToOrders++;
+
+        // Look up receiver
+        let receiverId = null;
+        let receiverName = entry.receiver || null;
+        if (entry.receiver) {
+          const receiver = userMapByEmail[entry.receiver.toLowerCase()];
+          if (receiver) {
+            receiverId = receiver.id;
+            receiverName = receiver.name || entry.receiver;
+          }
+        }
+
+        // Calculate sellable_units if not provided
+        const receivedGoodUnits = entry.received_good_units || 0;
+        const sellingBundleCount = entry.selling_bundle_count || 1;
+        let sellableUnits = entry.sellable_units;
+        if (!sellableUnits && receivedGoodUnits > 0 && sellingBundleCount > 0) {
+          sellableUnits = Math.floor(receivedGoodUnits / sellingBundleCount);
+        }
+
+        await db.query(`
+          INSERT INTO receiving_log (
+            receiving_id,
+            receiving_date,
+            warehouse_order_id,
+            warehouse_order_line_id,
+            client_id,
+            purchase_order_no,
+            vendor,
+            sku,
+            asin,
+            product_title,
+            received_good_units,
+            received_damaged_units,
+            selling_bundle_count,
+            sellable_units,
+            tracking_number,
+            notes,
+            receiver_id,
+            receiver_name
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        `, [
+          receivingId,
+          entry.receiving_date || null,
+          warehouseOrderId,
+          entry.warehouse_order_line_id || null,
+          clientId,
+          entry.purchase_order_no || null,
+          entry.vendor || null,
+          entry.sku || null,
+          entry.asin || null,
+          entry.product_title || null,
+          receivedGoodUnits,
+          entry.received_damaged_units || 0,
+          sellingBundleCount,
+          sellableUnits || 0,
+          entry.tracking_number || null,
+          entry.notes || null,
+          receiverId,
+          receiverName
+        ]);
+
+        imported++;
+      } catch (err) {
+        errors++;
+        if (errorMessages.length < 5) {
+          errorMessages.push(err.message);
+        }
+      }
+    }
+
+    res.json({
+      message: 'Import complete',
+      results: { imported, skipped, errors, linkedToOrders },
+      errorSamples: errorMessages
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /stats - Get import verification stats
+ */
+importRoutes.get('/stats', async (req, res, next) => {
+  try {
+    // Warehouse orders by client
+    const ordersResult = await db.query(`
+      SELECT c.client_code, c.name, COUNT(wo.id) as order_count
+      FROM clients c
+      LEFT JOIN warehouse_orders wo ON c.id = wo.client_id
+      GROUP BY c.id ORDER BY c.client_code
+    `);
+
+    // Receiving log by client
+    const receivingResult = await db.query(`
+      SELECT c.client_code, COUNT(rl.id) as receiving_count
+      FROM clients c
+      LEFT JOIN receiving_log rl ON c.id = rl.client_id
+      GROUP BY c.id ORDER BY c.client_code
+    `);
+
+    // Linked vs orphan receiving entries
+    const linkedResult = await db.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE warehouse_order_id IS NOT NULL) as linked,
+        COUNT(*) FILTER (WHERE warehouse_order_id IS NULL) as orphans
+      FROM receiving_log
+    `);
+
+    // Status distribution
+    const statusResult = await db.query(`
+      SELECT receiving_status, COUNT(*) as count
+      FROM warehouse_orders
+      GROUP BY receiving_status
+    `);
+
+    // Client order sequences
+    const sequenceResult = await db.query(`
+      SELECT c.client_code, cos.next_sequence
+      FROM client_order_sequences cos
+      JOIN clients c ON cos.client_id = c.id
+      ORDER BY c.client_code
+    `);
+
+    res.json({
+      warehouseOrdersByClient: ordersResult.rows,
+      receivingLogByClient: receivingResult.rows,
+      receivingLinks: linkedResult.rows[0],
+      statusDistribution: statusResult.rows,
+      clientSequences: sequenceResult.rows
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+module.exports = { clientRoutes, employeeRoutes, importRoutes };

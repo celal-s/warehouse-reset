@@ -1,17 +1,23 @@
 /**
- * Warehouse Orders Import Script
+ * Warehouse Orders & Receiving Log Import Script
  *
- * One-time script to import warehouse orders from CSV files.
+ * Script to import warehouse orders and receiving log from CSV files.
  *
- * Usage: node server/src/scripts/importWarehouseOrders.js
+ * Usage:
+ *   # Import warehouse orders (default behavior)
+ *   node src/scripts/importWarehouseOrders.js
+ *   node src/scripts/importWarehouseOrders.js "../full-receiving-implementation/561 - Warehouse Orders.csv"
+ *
+ *   # Import receiving log
+ *   node src/scripts/importWarehouseOrders.js "../full-receiving-implementation/00-receiving - Receiving Log.csv" --type=receiving
  *
  * The script will:
  * 1. Read CSV files from the full-receiving-implementation folder
  * 2. Parse columns and map to database fields
  * 3. Look up client_id from client_code (258, 412, 561)
  * 4. Look up marketplace_id from marketplace code
- * 5. Insert into warehouse_orders table
- * 6. Update client_order_sequences to max sequence used
+ * 5. Insert into warehouse_orders or receiving_log table
+ * 6. Update client_order_sequences to max sequence used (for orders)
  */
 
 require('dotenv').config({ path: require('path').join(__dirname, '../../.env') });
@@ -386,6 +392,230 @@ async function importCSVFile(filePath, clientCode) {
 }
 
 /**
+ * Parse a datetime string from various formats (including timestamps with time)
+ * @param {string} dateStr - Date/time string to parse
+ * @returns {string|null} ISO date-time string or null
+ */
+function parseDateTime(dateStr) {
+  if (!dateStr || dateStr.trim() === '' || dateStr === '12/30/1899') {
+    return null;
+  }
+
+  // Try MM/DD/YYYY HH:MM:SS format (e.g., "3/31/2025 9:40:14")
+  const mmddyyyyTime = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})$/);
+  if (mmddyyyyTime) {
+    const [, month, day, year, hour, minute, second] = mmddyyyyTime;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${hour.padStart(2, '0')}:${minute.padStart(2, '0')}:${second.padStart(2, '0')}`;
+  }
+
+  // Fall back to date-only parsing
+  return parseDate(dateStr);
+}
+
+/**
+ * Import receiving log from CSV
+ * @param {string} filePath - Path to CSV file
+ * @returns {Promise<object>} Import results
+ */
+async function importReceivingLog(filePath) {
+  console.log(`\nImporting Receiving Log from ${path.basename(filePath)}...`);
+
+  // Get all clients for lookup
+  const clientResult = await db.query('SELECT id, client_code FROM clients');
+  const clientMap = {};
+  for (const row of clientResult.rows) {
+    clientMap[row.client_code] = row.id;
+  }
+
+  // Get all users for receiver lookup (by email)
+  const userResult = await db.query('SELECT id, email, name FROM users');
+  const userMapByEmail = {};
+  for (const row of userResult.rows) {
+    userMapByEmail[row.email.toLowerCase()] = { id: row.id, name: row.name };
+  }
+
+  // Get all warehouse orders for linking
+  const ordersResult = await db.query('SELECT id, warehouse_order_line_id FROM warehouse_orders');
+  const orderMap = {};
+  for (const row of ordersResult.rows) {
+    orderMap[row.warehouse_order_line_id] = row.id;
+  }
+  console.log(`  Loaded ${Object.keys(orderMap).length} warehouse orders for linking`);
+
+  // Read and parse CSV
+  const content = fs.readFileSync(filePath, 'utf-8');
+  const lines = content.split('\n').filter(line => line.trim());
+
+  if (lines.length < 2) {
+    console.log('  No data rows found');
+    return { imported: 0, skipped: 0, errors: 0, linkedToOrders: 0 };
+  }
+
+  // Parse header - note first column header is empty/space for receiving_id
+  const headers = parseCSVLine(lines[0]);
+  console.log(`  Found ${lines.length - 1} data rows`);
+
+  // Map header indices
+  const headerMap = {};
+  headers.forEach((header, index) => {
+    const trimmed = header.trim();
+    // First column (index 0) is receiving_id even though header is empty
+    if (index === 0) {
+      headerMap['receiving_id'] = index;
+    } else if (trimmed) {
+      headerMap[trimmed] = index;
+    }
+  });
+
+  let imported = 0;
+  let skipped = 0;
+  let errors = 0;
+  let linkedToOrders = 0;
+
+  // Process each data row
+  for (let i = 1; i < lines.length; i++) {
+    try {
+      const fields = parseCSVLine(lines[i]);
+
+      // Get values by header name
+      const getValue = (headerName) => {
+        const index = headerMap[headerName];
+        return index !== undefined ? (fields[index] || '').trim() : '';
+      };
+
+      // First column is receiving_id
+      const receivingId = fields[0] ? fields[0].trim() : '';
+      if (!receivingId || !receivingId.startsWith('RCV')) {
+        skipped++;
+        continue;
+      }
+
+      // Check if already exists
+      const existingResult = await db.query(
+        'SELECT id FROM receiving_log WHERE receiving_id = $1',
+        [receivingId]
+      );
+
+      if (existingResult.rows.length > 0) {
+        skipped++;
+        continue;
+      }
+
+      // Parse fields
+      const receivingDate = parseDateTime(getValue('receiving_date'));
+      const warehouseOrderLineId = getValue('warehouse_order_line_ID');
+      const clientCode = getValue('client_code');
+      const purchaseOrderNo = getValue('purchase_order_no');
+      const vendor = getValue('vendor');
+      const sku = getValue('sku');
+      const asin = getValue('asin');
+      const productTitle = getValue('selling_marketplace_product_title');
+      const receivedGoodUnits = parseInt_(getValue('received_single_units_quantity')) || 0;
+      const receivedDamagedUnits = parseInt_(getValue('received_single_units_damaged_quantity')) || 0;
+      const sellingBundleCount = parseInt_(getValue('selling_marketplace_bundle_count')) || 1;
+      const totalSellableUnits = parseInt_(getValue('total_sellable_units'));
+      const trackingNumber = getValue('tracking_number');
+      const notes = getValue('notes');
+      const receiverEmail = getValue('receiver');
+
+      // Look up client_id
+      const clientId = clientMap[clientCode];
+      if (!clientId) {
+        errors++;
+        if (errors <= 5) {
+          console.error(`  Error on row ${i}: Unknown client_code "${clientCode}"`);
+        }
+        continue;
+      }
+
+      // Look up warehouse_order_id from warehouse_order_line_id
+      const warehouseOrderId = warehouseOrderLineId ? orderMap[warehouseOrderLineId] : null;
+      if (warehouseOrderId) {
+        linkedToOrders++;
+      }
+
+      // Look up receiver
+      let receiverId = null;
+      let receiverName = receiverEmail; // Default to email as name
+      if (receiverEmail) {
+        const receiver = userMapByEmail[receiverEmail.toLowerCase()];
+        if (receiver) {
+          receiverId = receiver.id;
+          receiverName = receiver.name || receiverEmail;
+        }
+      }
+
+      // Calculate sellable_units if not provided
+      // sellable_units = floor(received_good_units / selling_bundle_count)
+      let sellableUnits = totalSellableUnits;
+      if (!sellableUnits && receivedGoodUnits > 0 && sellingBundleCount > 0) {
+        sellableUnits = Math.floor(receivedGoodUnits / sellingBundleCount);
+      }
+
+      // Insert receiving log entry
+      await db.query(`
+        INSERT INTO receiving_log (
+          receiving_id,
+          receiving_date,
+          warehouse_order_id,
+          warehouse_order_line_id,
+          client_id,
+          purchase_order_no,
+          vendor,
+          sku,
+          asin,
+          product_title,
+          received_good_units,
+          received_damaged_units,
+          selling_bundle_count,
+          sellable_units,
+          tracking_number,
+          notes,
+          receiver_id,
+          receiver_name
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      `, [
+        receivingId,
+        receivingDate,
+        warehouseOrderId,
+        warehouseOrderLineId,
+        clientId,
+        purchaseOrderNo,
+        vendor,
+        sku,
+        asin,
+        productTitle,
+        receivedGoodUnits,
+        receivedDamagedUnits,
+        sellingBundleCount,
+        sellableUnits || 0,
+        trackingNumber,
+        notes,
+        receiverId,
+        receiverName
+      ]);
+
+      imported++;
+
+      // Progress indicator
+      if (imported % 1000 === 0) {
+        console.log(`  Imported ${imported} receiving entries...`);
+      }
+    } catch (error) {
+      errors++;
+      if (errors <= 10) {
+        console.error(`  Error on row ${i}: ${error.message}`);
+      }
+    }
+  }
+
+  console.log(`  Results: ${imported} imported, ${skipped} skipped, ${errors} errors`);
+  console.log(`  Linked to warehouse orders: ${linkedToOrders}`);
+
+  return { imported, skipped, errors, linkedToOrders };
+}
+
+/**
  * Update client_order_sequences table with max sequence used
  * @param {string} clientCode - Client code
  * @param {number} maxSequence - Maximum sequence number found
@@ -415,10 +645,107 @@ async function updateClientSequence(clientCode, maxSequence) {
 }
 
 /**
+ * Import a single warehouse orders CSV file (specified via command line)
+ * @param {string} filePath - Path to the CSV file
+ * @returns {Promise<object>} Import results
+ */
+async function importSingleOrdersFile(filePath) {
+  // Extract client code from filename (e.g., "561 - Warehouse Orders.csv" -> "561")
+  const filename = path.basename(filePath);
+  const clientCodeMatch = filename.match(/^(\d+)\s*-/);
+
+  if (!clientCodeMatch) {
+    throw new Error(`Cannot determine client code from filename: ${filename}. Expected format: "XXX - Warehouse Orders.csv"`);
+  }
+
+  const clientCode = clientCodeMatch[1];
+  console.log(`Detected client code: ${clientCode}`);
+
+  const result = await importCSVFile(filePath, clientCode);
+
+  // Update sequence for this client
+  if (result.maxSequence > 0) {
+    await updateClientSequence(clientCode, result.maxSequence);
+  }
+
+  return result;
+}
+
+/**
  * Main import function
  */
 async function main() {
-  console.log('Starting Warehouse Orders Import...');
+  const args = process.argv.slice(2);
+
+  // Check for --type=receiving flag
+  const isReceivingImport = args.some(arg => arg === '--type=receiving');
+  const fileArgs = args.filter(arg => !arg.startsWith('--'));
+
+  if (isReceivingImport) {
+    // Receiving log import mode
+    console.log('Starting Receiving Log Import...');
+
+    let filePath;
+    if (fileArgs.length > 0) {
+      // Use provided file path
+      filePath = path.resolve(fileArgs[0]);
+    } else {
+      // Default to the receiving log file
+      filePath = path.join(CSV_DIR, '00-receiving - Receiving Log.csv');
+    }
+
+    if (!fs.existsSync(filePath)) {
+      console.error(`Error: File not found: ${filePath}`);
+      process.exit(1);
+    }
+
+    try {
+      const result = await importReceivingLog(filePath);
+
+      console.log('\n========================================');
+      console.log('Receiving Log Import Complete!');
+      console.log(`Total imported: ${result.imported}`);
+      console.log(`Total skipped: ${result.skipped}`);
+      console.log(`Total errors: ${result.errors}`);
+      console.log(`Linked to orders: ${result.linkedToOrders}`);
+      console.log('========================================');
+    } catch (error) {
+      console.error('Import failed:', error.message);
+      process.exit(1);
+    }
+
+    process.exit(0);
+  }
+
+  if (fileArgs.length > 0) {
+    // Single file import mode
+    const filePath = path.resolve(fileArgs[0]);
+    console.log(`Starting single file import: ${filePath}`);
+
+    if (!fs.existsSync(filePath)) {
+      console.error(`Error: File not found: ${filePath}`);
+      process.exit(1);
+    }
+
+    try {
+      const result = await importSingleOrdersFile(filePath);
+
+      console.log('\n========================================');
+      console.log('Import Complete!');
+      console.log(`Total imported: ${result.imported}`);
+      console.log(`Total skipped: ${result.skipped}`);
+      console.log(`Total errors: ${result.errors}`);
+      console.log('========================================');
+    } catch (error) {
+      console.error('Import failed:', error.message);
+      process.exit(1);
+    }
+
+    process.exit(0);
+  }
+
+  // Default: import all warehouse order files
+  console.log('Starting Warehouse Orders Import (all files)...');
   console.log(`Looking for files in: ${CSV_DIR}`);
   console.log('');
 
@@ -474,4 +801,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { importCSVFile, main };
+module.exports = { importCSVFile, importReceivingLog, main };

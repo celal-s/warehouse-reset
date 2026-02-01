@@ -38,6 +38,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/returns', returnsRoutes);
 app.use('/api/clients/:clientCode/warehouse-orders', warehouseOrderRoutes.clientRoutes);
 app.use('/api/warehouse-orders', warehouseOrderRoutes.employeeRoutes);
+app.use('/api/import', warehouseOrderRoutes.importRoutes);
 
 // Error handler
 app.use(errorHandler);
