@@ -684,6 +684,64 @@ employeeRoutes.get('/:id', async (req, res, next) => {
 });
 
 /**
+ * POST /receiving-photos - Add a photo to a receiving entry
+ * Body: receiving_id, receiving_log_id (optional), photo_url, photo_type, notes
+ */
+employeeRoutes.post('/receiving-photos', async (req, res, next) => {
+  try {
+    const { receiving_id, receiving_log_id, photo_url, photo_type = 'receiving', notes } = req.body;
+
+    if (!receiving_id || !photo_url) {
+      return res.status(400).json({ error: 'receiving_id and photo_url are required' });
+    }
+
+    const result = await db.query(`
+      INSERT INTO receiving_photos (
+        receiving_log_id,
+        receiving_id,
+        photo_url,
+        photo_type,
+        notes,
+        uploaded_by
+      ) VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *
+    `, [
+      receiving_log_id || null,
+      receiving_id,
+      photo_url,
+      photo_type,
+      notes || null,
+      req.user?.id || null
+    ]);
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /receiving-photos/:receivingId - Get photos for a receiving entry
+ */
+employeeRoutes.get('/receiving-photos/:receivingId', async (req, res, next) => {
+  try {
+    const { receivingId } = req.params;
+
+    const result = await db.query(`
+      SELECT rp.*, u.name as uploaded_by_name
+      FROM receiving_photos rp
+      LEFT JOIN users u ON rp.uploaded_by = u.id
+      WHERE rp.receiving_id = $1
+      ORDER BY rp.uploaded_at DESC
+    `, [receivingId]);
+
+    res.json({ photos: result.rows });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * POST /:id/receive - Submit receiving entry
  * Body: received_good_units, received_damaged_units, tracking_number, notes
  */

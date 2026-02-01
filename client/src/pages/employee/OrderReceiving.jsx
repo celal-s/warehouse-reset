@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Layout from '../../components/Layout'
 import { OrderStatusBadge, OrderProgressBar } from '../../components/orders'
-import { getClients, searchOrdersForReceiving, getOrderForReceiving, submitOrderReceiving } from '../../api'
+import ReceivingPhotoSection from '../../components/upload/ReceivingPhotoSection'
+import { getClients, searchOrdersForReceiving, getOrderForReceiving, submitOrderReceiving, addReceivingPhoto } from '../../api'
 
 const employeeNavItems = [
   { to: '/employee/scan', label: 'Scan' },
@@ -27,6 +28,8 @@ export default function OrderReceiving() {
   const [trackingNumber, setTrackingNumber] = useState('')
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [capturedPhotos, setCapturedPhotos] = useState([])
+  const [tempReceivingId, setTempReceivingId] = useState(null)
 
   // Success modal state
   const [showSuccessModal, setShowSuccessModal] = useState(false)
@@ -72,6 +75,12 @@ export default function OrderReceiving() {
     }
   }
 
+  // Generate a temporary receiving ID for photo uploads before submission
+  const generateTempReceivingId = () => {
+    const randomDigits = Math.floor(100000 + Math.random() * 900000)
+    return `RCV${randomDigits}`
+  }
+
   const handleSelectOrder = async (order) => {
     setLoading(true)
     try {
@@ -82,12 +91,22 @@ export default function OrderReceiving() {
       setDamagedUnits('')
       setTrackingNumber('')
       setNotes('')
+      setCapturedPhotos([])
+      setTempReceivingId(generateTempReceivingId())
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
   }
+
+  const handlePhotoAdded = useCallback((photoUrl) => {
+    setCapturedPhotos(prev => [...prev, { photo_url: photoUrl }])
+  }, [])
+
+  const handlePhotoRemoved = useCallback((photoUrl) => {
+    setCapturedPhotos(prev => prev.filter(p => p.photo_url !== photoUrl))
+  }, [])
 
   const calculateSellableUnits = () => {
     if (!selectedOrder) return 0
@@ -117,6 +136,20 @@ export default function OrderReceiving() {
         tracking_number: trackingNumber,
         notes
       })
+
+      // Save captured photos to the receiving entry
+      const actualReceivingId = result.receiving_entry?.receiving_id
+      if (actualReceivingId && capturedPhotos.length > 0) {
+        const receivingLogId = result.receiving_entry?.id
+        for (const photo of capturedPhotos) {
+          try {
+            await addReceivingPhoto(actualReceivingId, photo.photo_url, receivingLogId)
+          } catch (photoErr) {
+            console.error('Failed to save photo:', photoErr)
+          }
+        }
+      }
+
       setReceivingResult(result)
       setShowSuccessModal(true)
 
@@ -129,6 +162,8 @@ export default function OrderReceiving() {
       setDamagedUnits('')
       setTrackingNumber('')
       setNotes('')
+      setCapturedPhotos([])
+      setTempReceivingId(generateTempReceivingId())
 
       // Refresh search results
       handleSearch()
@@ -366,6 +401,17 @@ export default function OrderReceiving() {
                       placeholder="Optional notes..."
                     />
                   </div>
+
+                  {/* Photo Capture Section */}
+                  {tempReceivingId && (
+                    <ReceivingPhotoSection
+                      receivingId={tempReceivingId}
+                      photos={capturedPhotos}
+                      onPhotoAdded={handlePhotoAdded}
+                      onPhotoRemoved={handlePhotoRemoved}
+                      disabled={submitting}
+                    />
+                  )}
 
                   <button
                     type="submit"

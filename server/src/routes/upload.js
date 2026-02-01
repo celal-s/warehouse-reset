@@ -67,6 +67,32 @@ router.post('/signature/label', authenticate, async (req, res, next) => {
   }
 });
 
+// Get Cloudinary signature for receiving photo upload
+router.post('/signature/receiving', authenticate, async (req, res, next) => {
+  try {
+    const timestamp = Math.round(new Date().getTime() / 1000);
+    const { receiving_id } = req.body;
+
+    const params = {
+      timestamp,
+      folder: 'warehouse/receiving',
+      public_id: `receiving_${receiving_id}_${timestamp}`
+    };
+
+    const signature = cloudinary.utils.api_sign_request(params, process.env.CLOUDINARY_API_SECRET);
+
+    res.json({
+      signature,
+      timestamp,
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+      apiKey: process.env.CLOUDINARY_API_KEY,
+      ...params
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get Cloudinary config for frontend
 router.get('/config', async (req, res, next) => {
   try {

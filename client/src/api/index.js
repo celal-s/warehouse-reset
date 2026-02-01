@@ -329,3 +329,24 @@ export const submitOrderReceiving = (orderId, data) =>
     method: 'POST',
     body: JSON.stringify(data)
   });
+
+// Receiving Photos
+export const getReceivingPhotoSignature = (receivingId) => request('/upload/signature/receiving', {
+  method: 'POST',
+  body: JSON.stringify({ receiving_id: receivingId })
+});
+
+export const addReceivingPhoto = (receivingId, photoUrl, receivingLogId = null, photoType = 'receiving', notes = null) =>
+  request('/warehouse-orders/receiving-photos', {
+    method: 'POST',
+    body: JSON.stringify({
+      receiving_id: receivingId,
+      receiving_log_id: receivingLogId,
+      photo_url: photoUrl,
+      photo_type: photoType,
+      notes
+    })
+  });
+
+export const getReceivingPhotos = (receivingId) =>
+  request(`/warehouse-orders/receiving-photos/${receivingId}`);

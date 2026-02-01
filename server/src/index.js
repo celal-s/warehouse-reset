@@ -276,6 +276,28 @@ const runMigrations = async () => {
     `);
     console.log('  - receiving_log table: indexes verified');
 
+    // Create receiving_photos table if it doesn't exist
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS receiving_photos (
+        id SERIAL PRIMARY KEY,
+        receiving_log_id INTEGER REFERENCES receiving_log(id) ON DELETE CASCADE,
+        receiving_id VARCHAR(20) NOT NULL,
+        photo_url VARCHAR(500) NOT NULL,
+        photo_type VARCHAR(50) DEFAULT 'receiving',
+        notes TEXT,
+        uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        uploaded_by INTEGER REFERENCES users(id)
+      );
+    `);
+    console.log('  - receiving_photos table: verified');
+
+    // Create indexes for receiving_photos table
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_receiving_photos_receiving_log_id ON receiving_photos(receiving_log_id);
+      CREATE INDEX IF NOT EXISTS idx_receiving_photos_receiving_id ON receiving_photos(receiving_id);
+    `);
+    console.log('  - receiving_photos table: indexes verified');
+
     console.log('Auto-migrations completed successfully');
   } catch (error) {
     console.error('Migration error:', error.message);
