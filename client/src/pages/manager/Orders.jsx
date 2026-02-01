@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import Layout from '../../components/Layout'
 import { managerNavItems } from '../../config/managerNav'
 
+const API_BASE = import.meta.env.VITE_API_URL || '/api'
+
 const statusColors = {
   awaiting: 'bg-yellow-100 text-yellow-800',
   partial: 'bg-blue-100 text-blue-800',
@@ -31,7 +33,7 @@ export default function ManagerOrders() {
 
   const loadClients = async () => {
     try {
-      const response = await fetch('/api/clients', {
+      const response = await fetch(`${API_BASE}/clients`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
@@ -54,7 +56,7 @@ export default function ManagerOrders() {
       if (filters.status) params.append('status', filters.status)
       if (filters.search) params.append('search', filters.search)
 
-      const response = await fetch(`/api/manager/orders?${params}`, {
+      const response = await fetch(`${API_BASE}/manager/orders?${params}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }

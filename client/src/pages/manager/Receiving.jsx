@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import Layout from '../../components/Layout'
 import { managerNavItems } from '../../config/managerNav'
 
+const API_BASE = import.meta.env.VITE_API_URL || '/api'
+
 export default function ManagerReceiving() {
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(true)
@@ -23,7 +25,7 @@ export default function ManagerReceiving() {
 
   const loadClients = async () => {
     try {
-      const response = await fetch('/api/clients', {
+      const response = await fetch(`${API_BASE}/clients`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
@@ -46,7 +48,7 @@ export default function ManagerReceiving() {
       if (filters.start_date) params.append('start_date', filters.start_date)
       if (filters.end_date) params.append('end_date', filters.end_date)
 
-      const response = await fetch(`/api/manager/receiving?${params}`, {
+      const response = await fetch(`${API_BASE}/manager/receiving?${params}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }

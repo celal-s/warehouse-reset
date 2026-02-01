@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import Layout from '../../components/Layout'
 import { managerNavItems } from '../../config/managerNav'
 
+const API_BASE = import.meta.env.VITE_API_URL || '/api'
+
 export default function ManagerClients() {
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
@@ -16,7 +18,7 @@ export default function ManagerClients() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch('/api/manager/clients', {
+      const response = await fetch(`${API_BASE}/manager/clients`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
